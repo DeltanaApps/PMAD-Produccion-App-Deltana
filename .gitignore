@@ -3,4 +3,4 @@ dist
 .env
 .env.local
 *.local
-MIGRATIONS_TO_RUN.sql
+MIGRATIONS_TO_RUN*.sql

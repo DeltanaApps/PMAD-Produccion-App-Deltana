@@ -4,18 +4,29 @@ import { EyeIcon, EyeOffIcon } from './ui/Icons';
 
 interface LoginProps {
   onLogin: (email: string, password: string) => Promise<string | null>;
+  onLoginWithMicrosoft: () => Promise<string | null>;
 }
+
+const MicrosoftIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+    <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+    <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+    <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+    <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+  </svg>
+);
 
 const montserrat: React.CSSProperties = { fontFamily: '"Montserrat", sans-serif' };
 
 const HERO_IMAGES = ['/images/login/hero-1.jpg', '/images/login/hero-2.jpg', '/images/login/hero-3.jpg', '/images/login/hero-4.jpg'];
 
-const Login: React.FC<LoginProps> = ({ onLogin }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, onLoginWithMicrosoft }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [msSubmitting, setMsSubmitting] = useState(false);
 
   // Pick once per mount so it doesn't shuffle on every re-render/keystroke.
   const heroImage = useMemo(() => HERO_IMAGES[Math.floor(Math.random() * HERO_IMAGES.length)], []);
@@ -29,6 +40,17 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       setError(errorMessage);
       setPassword('');
     }
+  };
+
+  const handleMicrosoftClick = async () => {
+    setMsSubmitting(true);
+    setError(null);
+    const errorMessage = await onLoginWithMicrosoft();
+    if (errorMessage) {
+      setError(errorMessage);
+      setMsSubmitting(false);
+    }
+    // on success the browser navigates away to Microsoft's login page
   };
 
   return (
@@ -76,6 +98,22 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             Acceso al sistema
           </h1>
           <p className="text-gray-500 text-sm mb-8">Ingresá con tu cuenta para continuar.</p>
+
+          <button
+            type="button"
+            onClick={handleMicrosoftClick}
+            disabled={msSubmitting}
+            className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold py-3 rounded-lg transition-all disabled:opacity-60"
+          >
+            <MicrosoftIcon className="w-5 h-5" />
+            {msSubmitting ? 'Redirigiendo...' : 'Iniciar sesión con Microsoft'}
+          </button>
+
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-px bg-gray-200" />
+            <span className="text-xs text-gray-400 font-medium">o continuá con tu email</span>
+            <div className="flex-1 h-px bg-gray-200" />
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>

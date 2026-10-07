@@ -152,7 +152,7 @@ const App: React.FC = () => {
     ])
       .then(([loadedProjects, loadedLoneCollaborators, loadedRates, profile]) => {
         if (profile && profile.active === false) {
-          alert('Tu cuenta está desactivada. Contactá a Dirección.');
+          alert('Tu cuenta todavía no tiene acceso habilitado en la app. Contactá a Administración para que te asigne un rol.');
           supabase.auth.signOut();
           return;
         }
@@ -223,6 +223,17 @@ const App: React.FC = () => {
           return 'Email o contraseña incorrectos.';
       }
       return null;
+  };
+
+  const handleMicrosoftLogin = async (): Promise<string | null> => {
+      const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'azure',
+          options: { scopes: 'openid email profile offline_access' },
+      });
+      if (error) {
+          return 'No se pudo iniciar el login con Microsoft. Intentá de nuevo.';
+      }
+      return null; // on success the browser redirects away; nothing left to do here
   };
 
   const handleLogout = () => {
@@ -581,7 +592,7 @@ const App: React.FC = () => {
   }
 
   if (!session) {
-      return <Login onLogin={handleLogin} />;
+      return <Login onLogin={handleLogin} onLoginWithMicrosoft={handleMicrosoftLogin} />;
   }
 
   if (dataLoading) {

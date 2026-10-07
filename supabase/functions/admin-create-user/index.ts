@@ -105,7 +105,7 @@ Deno.serve(async (req: Request) => {
 
     const { error: updateError } = await adminClient
       .from("profiles")
-      .update({ role, name: name || null })
+      .update({ role, name: name || null, active: true })
       .eq("id", created.user.id);
     if (updateError) {
       return json({ error: updateError.message }, 400);

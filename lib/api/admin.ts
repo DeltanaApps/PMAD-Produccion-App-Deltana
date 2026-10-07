@@ -28,6 +28,34 @@ export async function updateProfileActive(userId: string, active: boolean): Prom
   if (error) throw error;
 }
 
+export interface PendingRoleAssignment {
+  email: string;
+  role: string;
+  name: string | null;
+  created_at: string;
+}
+
+export async function fetchPendingAssignments(): Promise<PendingRoleAssignment[]> {
+  const { data, error } = await supabase
+    .from('pending_role_assignments')
+    .select('email, role, name, created_at')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function createPendingAssignment(email: string, role: string, name?: string): Promise<void> {
+  const { error } = await supabase
+    .from('pending_role_assignments')
+    .upsert({ email: email.trim().toLowerCase(), role, name: name || null });
+  if (error) throw error;
+}
+
+export async function deletePendingAssignment(email: string): Promise<void> {
+  const { error } = await supabase.from('pending_role_assignments').delete().eq('email', email);
+  if (error) throw error;
+}
+
 async function unwrapFunctionError(error: unknown): Promise<never> {
   // Supabase JS wraps the function's JSON error body inside `error.context`
   const context = (error as { context?: Response }).context;
