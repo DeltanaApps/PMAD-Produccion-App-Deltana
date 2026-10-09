@@ -4,3 +4,4 @@ dist
 .env.local
 *.local
 MIGRATIONS_TO_RUN*.sql
+*.timestamp-*.mjs
