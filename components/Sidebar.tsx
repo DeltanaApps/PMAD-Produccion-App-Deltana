@@ -11,6 +11,7 @@ interface SidebarProps {
   lastDataUpdate: string | null;
   canViewExecutiveDashboard?: boolean;
   isAdministracion?: boolean;
+  pendingApprovalCount?: number;
 }
 
 const NavItem: React.FC<{
@@ -18,23 +19,39 @@ const NavItem: React.FC<{
   label: string;
   isActive: boolean;
   onClick: () => void;
-}> = ({ icon, label, isActive, onClick }) => {
+  badgeCount?: number;
+}> = ({ icon, label, isActive, onClick, badgeCount }) => {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center w-full px-4 py-3 text-sm font-medium transition-colors duration-200 ${
+      className={`relative flex items-center w-full px-4 py-3 text-sm font-medium transition-colors duration-200 ${
         isActive
           ? 'bg-sky-500 text-white'
           : 'text-gray-400 hover:bg-gray-700 hover:text-white'
       }`}
     >
-      {icon}
+      <span className="relative inline-flex">
+        {icon}
+        {!!badgeCount && (
+          <span
+            className="md:hidden absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none"
+            title={`${badgeCount} cuenta(s) esperando aprobación`}
+          >
+            {badgeCount > 9 ? '9+' : badgeCount}
+          </span>
+        )}
+      </span>
       <span className="ml-4 hidden md:inline">{label}</span>
+      {!!badgeCount && (
+        <span className="ml-auto hidden md:inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[11px] font-bold">
+          {badgeCount > 99 ? '99+' : badgeCount}
+        </span>
+      )}
     </button>
   );
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onExportData, onImportData, lastDataUpdate, canViewExecutiveDashboard, isAdministracion }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onExportData, onImportData, lastDataUpdate, canViewExecutiveDashboard, isAdministracion, pendingApprovalCount }) => {
   const iconClass = "h-6 w-6";
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -128,6 +145,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onExport
             label="Administración"
             isActive={currentView === 'administration'}
             onClick={() => setCurrentView('administration')}
+            badgeCount={pendingApprovalCount}
           />
         )}
       </nav>

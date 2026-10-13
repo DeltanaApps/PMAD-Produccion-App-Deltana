@@ -20,7 +20,11 @@ const generatePassword = () => {
   return pwd;
 };
 
-const Administration: React.FC = () => {
+interface AdministrationProps {
+  onPendingApprovalCountChange?: (count: number) => void;
+}
+
+const Administration: React.FC<AdministrationProps> = ({ onPendingApprovalCountChange }) => {
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +39,10 @@ const Administration: React.FC = () => {
   const [resettingId, setResettingId] = useState<string | null>(null);
   const [resetInfo, setResetInfo] = useState<{ email: string; password: string } | null>(null);
   const [resetCopied, setResetCopied] = useState(false);
+
+  useEffect(() => {
+    onPendingApprovalCountChange?.(profiles.filter((p) => !p.active).length);
+  }, [profiles, onPendingApprovalCountChange]);
 
   const [pending, setPending] = useState<PendingRoleAssignment[]>([]);
   const [pendingEmail, setPendingEmail] = useState('');

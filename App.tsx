@@ -29,6 +29,7 @@ import {
   fetchProjectManagers,
 } from './lib/api/fetch';
 import { updateMyThemePreference } from './lib/api/preferences';
+import { fetchInactiveProfilesCount } from './lib/api/admin';
 import {
   saveProject as apiSaveProject,
   deleteProject as apiDeleteProject,
@@ -119,6 +120,7 @@ const App: React.FC = () => {
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [currentUserLabel, setCurrentUserLabel] = useState<string | null>(null);
   const [projectManagers, setProjectManagers] = useState<Record<string, { id: string; name: string }>>({});
+  const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
 
   // Track auth session
   useEffect(() => {
@@ -167,6 +169,9 @@ const App: React.FC = () => {
         if (profile?.role === 'direccion' || profile?.role === 'administracion') {
           fetchProjectManagers().then(setProjectManagers).catch(handlePersistError);
           setCurrentView('executive-dashboard');
+        }
+        if (profile?.role === 'administracion') {
+          fetchInactiveProfilesCount().then(setPendingApprovalCount).catch(handlePersistError);
         }
       })
       .catch((err) => {
@@ -575,7 +580,7 @@ const App: React.FC = () => {
         if (currentUserRole !== 'administracion') {
           return <Dashboard projects={projects} internalRates={internalRates} />;
         }
-        return <Administration />;
+        return <Administration onPendingApprovalCountChange={setPendingApprovalCount} />;
       default:
         return <Dashboard projects={projects} internalRates={internalRates} />;
     }
@@ -616,6 +621,7 @@ const App: React.FC = () => {
         lastDataUpdate={lastDataUpdate}
         canViewExecutiveDashboard={currentUserRole === 'direccion' || currentUserRole === 'administracion'}
         isAdministracion={currentUserRole === 'administracion'}
+        pendingApprovalCount={pendingApprovalCount}
       />
 
       {/* User menu (Positioned Absolute Top Right) */}

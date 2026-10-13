@@ -28,6 +28,15 @@ export async function updateProfileActive(userId: string, active: boolean): Prom
   if (error) throw error;
 }
 
+export async function fetchInactiveProfilesCount(): Promise<number> {
+  const { count, error } = await supabase
+    .from('profiles')
+    .select('id', { count: 'exact', head: true })
+    .eq('active', false);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 export interface PendingRoleAssignment {
   email: string;
   role: string;
