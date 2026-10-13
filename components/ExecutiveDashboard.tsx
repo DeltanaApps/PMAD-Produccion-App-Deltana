@@ -11,6 +11,8 @@ interface ExecutiveDashboardProps {
   projects: Project[];
   internalRates: Record<string, number>;
   projectManagers: Record<string, { id: string; name: string }>;
+  isAdministracion?: boolean;
+  pendingApprovalCount?: number;
 }
 
 const formatEuro = (amount: number) =>
@@ -35,7 +37,7 @@ const BUCKET_COLOR: Record<HealthBucket, string> = {
   sinPresupuesto: 'text-gray-400 border-gray-600/40 bg-gray-700/20',
 };
 
-const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, internalRates, projectManagers }) => {
+const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, internalRates, projectManagers, isAdministracion, pendingApprovalCount }) => {
   const [exportMonth, setExportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [managerFilter, setManagerFilter] = useState<string>('all');
 
@@ -215,6 +217,24 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
           </button>
         </div>
       </div>
+
+      {isAdministracion && typeof pendingApprovalCount === 'number' && (
+        <div
+          className={`mb-8 print:hidden flex items-center gap-2 text-sm px-4 py-2.5 rounded-lg border ${
+            pendingApprovalCount > 0
+              ? 'bg-amber-900/20 border-amber-900/50 text-amber-300'
+              : 'bg-emerald-900/10 border-emerald-900/40 text-emerald-300/90'
+          }`}
+        >
+          {pendingApprovalCount > 0 ? (
+            <span>
+              Tienes <b>{pendingApprovalCount}</b> solicitud{pendingApprovalCount === 1 ? '' : 'es'} pendiente{pendingApprovalCount === 1 ? '' : 's'} por aprobar — revísalas en <b>Administración</b>.
+            </span>
+          ) : (
+            <span>No hay ninguna solicitud pendiente por aprobar.</span>
+          )}
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

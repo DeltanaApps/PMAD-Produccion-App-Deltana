@@ -574,6 +574,8 @@ const App: React.FC = () => {
             projects={projects}
             internalRates={internalRates}
             projectManagers={projectManagers}
+            isAdministracion={currentUserRole === 'administracion'}
+            pendingApprovalCount={pendingApprovalCount}
           />
         );
       case 'administration':

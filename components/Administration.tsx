@@ -167,22 +167,6 @@ const Administration: React.FC<AdministrationProps> = ({ onPendingApprovalCountC
         </p>
       </div>
 
-      <div
-        className={`mb-6 flex items-center gap-2 text-sm px-4 py-2.5 rounded-lg border ${
-          pendingCount > 0
-            ? 'bg-amber-900/20 border-amber-900/50 text-amber-300'
-            : 'bg-emerald-900/10 border-emerald-900/40 text-emerald-300/90'
-        }`}
-      >
-        {pendingCount > 0 ? (
-          <span>
-            Tienes <b>{pendingCount}</b> solicitud{pendingCount === 1 ? '' : 'es'} pendiente{pendingCount === 1 ? '' : 's'} por aprobar.
-          </span>
-        ) : (
-          <span>No hay ninguna solicitud pendiente por aprobar.</span>
-        )}
-      </div>
-
       {error && (
         <div className="mb-6 text-red-400 text-sm bg-red-900/20 py-2 px-4 rounded border border-red-900/50">
           {error}
