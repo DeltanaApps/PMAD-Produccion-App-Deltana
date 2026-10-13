@@ -181,6 +181,15 @@ const App: React.FC = () => {
       .finally(() => setDataLoading(false));
   }, [session]);
 
+  // Keep the pending-approval count fresh for Administración without needing a manual reload.
+  useEffect(() => {
+    if (currentUserRole !== 'administracion') return;
+    const intervalId = setInterval(() => {
+      fetchInactiveProfilesCount().then(setPendingApprovalCount).catch(handlePersistError);
+    }, 5 * 60 * 1000);
+    return () => clearInterval(intervalId);
+  }, [currentUserRole]);
+
   // Project Modal State
   const [isProjectModalOpen, setProjectModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
