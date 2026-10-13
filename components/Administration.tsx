@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Card from './ui/Card';
 import { PlusIcon, TrashIcon } from './ui/Icons';
 import type { UserProfile, PendingRoleAssignment } from '../lib/api/admin';
@@ -40,9 +40,11 @@ const Administration: React.FC<AdministrationProps> = ({ onPendingApprovalCountC
   const [resetInfo, setResetInfo] = useState<{ email: string; password: string } | null>(null);
   const [resetCopied, setResetCopied] = useState(false);
 
+  const pendingCount = useMemo(() => profiles.filter((p) => !p.active).length, [profiles]);
+
   useEffect(() => {
-    onPendingApprovalCountChange?.(profiles.filter((p) => !p.active).length);
-  }, [profiles, onPendingApprovalCountChange]);
+    onPendingApprovalCountChange?.(pendingCount);
+  }, [pendingCount, onPendingApprovalCountChange]);
 
   const [pending, setPending] = useState<PendingRoleAssignment[]>([]);
   const [pendingEmail, setPendingEmail] = useState('');
@@ -161,8 +163,24 @@ const Administration: React.FC<AdministrationProps> = ({ onPendingApprovalCountC
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white">Administración</h1>
         <p className="text-gray-400 mt-2 max-w-3xl text-sm">
-          Alta de usuarios y gestión de roles. Solo Dirección puede ver y usar esta pantalla.
+          Alta de usuarios y gestión de roles. Solo Administración puede ver y usar esta pantalla.
         </p>
+      </div>
+
+      <div
+        className={`mb-6 flex items-center gap-2 text-sm px-4 py-2.5 rounded-lg border ${
+          pendingCount > 0
+            ? 'bg-amber-900/20 border-amber-900/50 text-amber-300'
+            : 'bg-emerald-900/10 border-emerald-900/40 text-emerald-300/90'
+        }`}
+      >
+        {pendingCount > 0 ? (
+          <span>
+            Tienes <b>{pendingCount}</b> solicitud{pendingCount === 1 ? '' : 'es'} pendiente{pendingCount === 1 ? '' : 's'} por aprobar.
+          </span>
+        ) : (
+          <span>No hay ninguna solicitud pendiente por aprobar.</span>
+        )}
       </div>
 
       {error && (
