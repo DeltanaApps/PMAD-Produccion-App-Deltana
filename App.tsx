@@ -53,10 +53,21 @@ import {
 // is needed to see the server's version again).
 const ROLE_LABELS: Record<string, string> = {
   direccion: 'Dirección',
+  administrador: 'Administrador',
   administracion: 'Administración',
   gestor: 'Gestor',
   colaborador: 'Colaborador',
 };
+
+// Roles that get the read-only portfolio view (Dashboard Ejecutivo, read-only
+// Proyectos/Equipo/Clientes/Colaboradores). "administrador" additionally gets
+// the Administración panel (user management) — see isAdministradorRole below.
+const PORTFOLIO_VIEW_ROLES = ['direccion', 'administracion', 'administrador'];
+const isPortfolioViewRole = (role: string | null) => !!role && PORTFOLIO_VIEW_ROLES.includes(role);
+// Only "administrador" manages user accounts/roles — "administracion" (the
+// accounting-focused role) shares the read-only portfolio view above but has
+// no access to user management.
+const isAdministradorRole = (role: string | null) => role === 'administrador';
 
 const handlePersistError = (err: unknown) => {
   console.error('Error al guardar en Supabase:', err);
@@ -166,11 +177,11 @@ const App: React.FC = () => {
         if (profile?.theme_preference === 'light' || profile?.theme_preference === 'dark') {
           setTheme(profile.theme_preference);
         }
-        if (profile?.role === 'direccion' || profile?.role === 'administracion') {
+        if (isPortfolioViewRole(profile?.role ?? null)) {
           fetchProjectManagers().then(setProjectManagers).catch(handlePersistError);
           setCurrentView('executive-dashboard');
         }
-        if (profile?.role === 'administracion') {
+        if (isAdministradorRole(profile?.role ?? null)) {
           fetchInactiveProfilesCount().then(setPendingApprovalCount).catch(handlePersistError);
         }
       })
@@ -181,9 +192,9 @@ const App: React.FC = () => {
       .finally(() => setDataLoading(false));
   }, [session]);
 
-  // Keep the pending-approval count fresh for Administración without needing a manual reload.
+  // Keep the pending-approval count fresh for Administrador without needing a manual reload.
   useEffect(() => {
-    if (currentUserRole !== 'administracion') return;
+    if (!isAdministradorRole(currentUserRole)) return;
     const intervalId = setInterval(() => {
       fetchInactiveProfilesCount().then(setPendingApprovalCount).catch(handlePersistError);
     }, 5 * 60 * 1000);
@@ -528,12 +539,12 @@ const App: React.FC = () => {
                   onEditProject={handleOpenEditProjectModal}
                   onViewProject={handleOpenViewProjectModal}
                   projectManagers={projectManagers}
-                  readOnly={currentUserRole === 'direccion' || currentUserRole === 'administracion'}
+                  readOnly={isPortfolioViewRole(currentUserRole)}
                />;
       case 'planning':
         return <Planning projects={projects} />;
       case 'team': {
-        const isTeamReadOnly = currentUserRole === 'direccion' || currentUserRole === 'administracion';
+        const isTeamReadOnly = isPortfolioViewRole(currentUserRole);
         return <Team
                   projects={projects}
                   internalRates={internalRates}
@@ -559,7 +570,7 @@ const App: React.FC = () => {
                   onAddClient={handleOpenAddProjectModal}
                   onEditFinancials={(project) => setEditingClientProject(project)}
                   projectManagers={projectManagers}
-                  readOnly={currentUserRole === 'direccion' || currentUserRole === 'administracion'}
+                  readOnly={isPortfolioViewRole(currentUserRole)}
                 />;
       case 'collaborators':
         return <Collaborators
@@ -570,12 +581,12 @@ const App: React.FC = () => {
                   onAddCollaborator={handleOpenAddCollaboratorModal}
                   onUpdateCollaboratorName={handleUpdateCollaboratorName}
                   projectManagers={projectManagers}
-                  readOnly={currentUserRole === 'direccion' || currentUserRole === 'administracion'}
+                  readOnly={isPortfolioViewRole(currentUserRole)}
                 />;
       case 'economic-tracking':
         return <EconomicTracking projects={projects} globalRates={internalRates} projectManagers={projectManagers} />;
       case 'executive-dashboard':
-        if (currentUserRole !== 'direccion' && currentUserRole !== 'administracion') {
+        if (!isPortfolioViewRole(currentUserRole)) {
           return <Dashboard projects={projects} internalRates={internalRates} />;
         }
         return (
@@ -583,12 +594,12 @@ const App: React.FC = () => {
             projects={projects}
             internalRates={internalRates}
             projectManagers={projectManagers}
-            isAdministracion={currentUserRole === 'administracion'}
+            isAdministracion={isAdministradorRole(currentUserRole)}
             pendingApprovalCount={pendingApprovalCount}
           />
         );
       case 'administration':
-        if (currentUserRole !== 'administracion') {
+        if (!isAdministradorRole(currentUserRole)) {
           return <Dashboard projects={projects} internalRates={internalRates} />;
         }
         return <Administration onPendingApprovalCountChange={setPendingApprovalCount} />;
@@ -630,8 +641,8 @@ const App: React.FC = () => {
         onExportData={handleExportData}
         onImportData={handleImportData}
         lastDataUpdate={lastDataUpdate}
-        canViewExecutiveDashboard={currentUserRole === 'direccion' || currentUserRole === 'administracion'}
-        isAdministracion={currentUserRole === 'administracion'}
+        canViewExecutiveDashboard={isPortfolioViewRole(currentUserRole)}
+        isAdministracion={isAdministradorRole(currentUserRole)}
         pendingApprovalCount={pendingApprovalCount}
       />
 

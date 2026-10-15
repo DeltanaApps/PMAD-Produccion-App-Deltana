@@ -18,7 +18,7 @@ const json = (body: unknown, status = 200) =>
     headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
   });
 
-const VALID_ROLES = ["direccion", "administracion", "gestor", "colaborador"];
+const VALID_ROLES = ["direccion", "administrador", "administracion", "gestor", "colaborador"];
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -55,8 +55,8 @@ Deno.serve(async (req: Request) => {
       .select("role")
       .eq("id", caller.id)
       .single();
-    if (profileError || callerProfile?.role !== "administracion") {
-      return json({ error: "Solo Administración puede crear usuarios." }, 403);
+    if (profileError || callerProfile?.role !== "administrador") {
+      return json({ error: "Solo Administrador puede crear usuarios." }, 403);
     }
 
     const body = await req.json();

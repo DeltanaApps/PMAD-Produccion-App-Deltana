@@ -227,6 +227,7 @@ const Administration: React.FC<AdministrationProps> = ({ onPendingApprovalCountC
               <option value="gestor">Gestor</option>
               <option value="direccion">Dirección</option>
               <option value="administracion">Administración</option>
+              <option value="administrador">Administrador</option>
             </select>
           </div>
           <div className="md:col-span-2">
@@ -316,6 +317,7 @@ const Administration: React.FC<AdministrationProps> = ({ onPendingApprovalCountC
               <option value="gestor">Gestor</option>
               <option value="direccion">Dirección</option>
               <option value="administracion">Administración</option>
+              <option value="administrador">Administrador</option>
             </select>
           </div>
           <div className="md:col-span-4">
@@ -430,6 +432,7 @@ const Administration: React.FC<AdministrationProps> = ({ onPendingApprovalCountC
                         <option value="gestor">Gestor</option>
                         <option value="direccion">Dirección</option>
                         <option value="administracion">Administración</option>
+                        <option value="administrador">Administrador</option>
                       </select>
                     </td>
                     <td className="py-2 px-2">
