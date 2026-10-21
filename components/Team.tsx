@@ -95,18 +95,24 @@ const Team: React.FC<TeamProps> = ({
     };
   }, [projects, teamMembersCatalog]);
 
-  // A member with zero projects visible to me might be globally unassigned,
-  // or might just be on another gestor's project I can't see -- either way,
-  // deleting it needs the safer, server-confirmed path.
-  const handleDeleteRow = async (member: ResourceRow) => {
-    if (!window.confirm(`¿Eliminar definitivamente a "${member.name}" de Recursos?`)) return;
+  // Raw delete with no confirm/alert of its own -- callers (the table row's
+  // click handler, or the modal's own confirm+error UI) own that part.
+  const deleteMemberRaw = async (member: ResourceRow): Promise<void> => {
     if (member.projects.length > 0) {
       onDeleteMember?.(member.contact);
       return;
     }
     if (!onDeleteCatalogMember) return;
+    // A member with zero projects visible to me might be globally
+    // unassigned, or might just be on another gestor's project I can't see
+    // -- either way, this is the safer, server-confirmed path.
+    await onDeleteCatalogMember(member.contact);
+  };
+
+  const handleDeleteRow = async (member: ResourceRow) => {
+    if (!window.confirm(`¿Eliminar definitivamente a "${member.name}" de Recursos?`)) return;
     try {
-      await onDeleteCatalogMember(member.contact);
+      await deleteMemberRaw(member);
     } catch (err: any) {
       alert(
         err?.code === '23503'
@@ -249,6 +255,7 @@ const Team: React.FC<TeamProps> = ({
             onUpdateMemberType={onUpdateMemberType}
             onUpdateMemberName={onUpdateMemberName}
             onUpdateMemberContact={onUpdateMemberContact}
+            onDeleteMember={canDeleteRow(selectedMember) ? () => deleteMemberRaw(selectedMember) : undefined}
           />
         )}
       </div>
@@ -288,6 +295,7 @@ const Team: React.FC<TeamProps> = ({
           onUpdateMemberType={onUpdateMemberType}
           onUpdateMemberName={onUpdateMemberName}
           onUpdateMemberContact={onUpdateMemberContact}
+          onDeleteMember={canDeleteRow(selectedMember) ? () => deleteMemberRaw(selectedMember) : undefined}
         />
       )}
     </div>
@@ -305,7 +313,8 @@ const TeamMemberModalWrapper: React.FC<{
   onUpdateMemberType?: (contact: string, type: string) => void;
   onUpdateMemberName?: (contact: string, newName: string) => void;
   onUpdateMemberContact?: (contact: string, newContact: string) => Promise<void>;
-}> = ({ selectedMember, setSelectedMember, projects, internalRates, onUpdateRate, onUpdateMemberType, onUpdateMemberName, onUpdateMemberContact }) => (
+  onDeleteMember?: () => Promise<void>;
+}> = ({ selectedMember, setSelectedMember, projects, internalRates, onUpdateRate, onUpdateMemberType, onUpdateMemberName, onUpdateMemberContact, onDeleteMember }) => (
   <TeamMemberModal
     member={selectedMember as any}
     projects={projects}
@@ -320,6 +329,7 @@ const TeamMemberModalWrapper: React.FC<{
       await onUpdateMemberContact(selectedMember.contact, newContact);
       setSelectedMember({ ...selectedMember, contact: newContact });
     } : undefined}
+    onDeleteMember={onDeleteMember}
     onClose={() => setSelectedMember(null)}
   />
 );

@@ -13,6 +13,7 @@ interface TeamMemberModalProps {
   onUpdateMemberType?: (type: string) => void;
   onUpdateMemberName?: (newName: string) => void;
   onUpdateMemberContact?: (newContact: string) => Promise<void>;
+  onDeleteMember?: () => Promise<void>;
   onClose: () => void;
 }
 
@@ -29,7 +30,29 @@ const CloseIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 
-const TeamMemberModal: React.FC<TeamMemberModalProps> = ({ member, projects, internalRate, onUpdateRate, onUpdateMemberType, onUpdateMemberName, onUpdateMemberContact, onClose }) => {
+const TeamMemberModal: React.FC<TeamMemberModalProps> = ({ member, projects, internalRate, onUpdateRate, onUpdateMemberType, onUpdateMemberName, onUpdateMemberContact, onDeleteMember, onClose }) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDelete = async () => {
+    if (!onDeleteMember) return;
+    if (!window.confirm(`¿Eliminar definitivamente a "${member.name}" de Recursos? Esta acción no se puede deshacer.`)) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await onDeleteMember();
+      onClose();
+    } catch (err: any) {
+      setDeleteError(
+        err?.code === '23503'
+          ? 'Este recurso participa en un proyecto de otro gestor que no podés ver, así que no se puede eliminar desde acá.'
+          : 'No se pudo eliminar el recurso.'
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(member.name);
 
@@ -355,7 +378,22 @@ const TeamMemberModal: React.FC<TeamMemberModalProps> = ({ member, projects, int
             {renderProjectList('Historial / Finalizados', memberProjects.inactiveWork, true)}
 
             {memberProjects.activeWork.length === 0 && memberProjects.inactiveWork.length === 0 && (
-                <p className="text-gray-500 mt-4">Este miembro no está asignado a ningún proyecto.</p>
+                <div className="text-center py-6">
+                    <p className="text-gray-400">No participa en ningún proyecto que puedas ver.</p>
+                    <p className="text-gray-500 text-sm mt-1 max-w-md mx-auto">Si otro gestor lo cargó en un proyecto propio, ese proyecto no se muestra acá — pero el recurso sigue existiendo en el catálogo compartido.</p>
+                    {onDeleteMember && (
+                        <div className="mt-4">
+                            <button
+                                onClick={handleDelete}
+                                disabled={isDeleting}
+                                className="text-sm text-red-400 hover:text-red-300 hover:underline disabled:opacity-50"
+                            >
+                                {isDeleting ? 'Eliminando…' : 'Eliminar este recurso'}
+                            </button>
+                            {deleteError && <p className="text-xs text-red-400 mt-2">{deleteError}</p>}
+                        </div>
+                    )}
+                </div>
             )}
         </div>
 
