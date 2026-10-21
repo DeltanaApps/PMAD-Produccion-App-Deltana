@@ -291,9 +291,9 @@ const TeamMemberModal: React.FC<TeamMemberModalProps> = ({ member, projects, int
                             >
                                 <option value="">Seleccionar Tipo...</option>
                                 <option value="Producción España">Producción España</option>
-                                <option value="Producción Colombia">Producción Colombia</option>
+                                <option value="Producción Latinoamérica">Producción Latinoamérica</option>
                                 <option value="Coordinación España">Coordinación España</option>
-                                <option value="Coordinación Colombia">Coordinación Colombia</option>
+                                <option value="Coordinación Latinoamérica">Coordinación Latinoamérica</option>
                                 <option value="Gestión">Gestión</option>
                             </select>
                         </div>
