@@ -128,6 +128,53 @@ const TeamMemberModal: React.FC<TeamMemberModalProps> = ({ member, projects, int
                             {p.status === ProjectStatus.Completed && (
                                 <span className="text-xs text-gray-500">Proyecto Finalizado</span>
                             )}
+                            {teamMember?.type === MemberType.External && teamMember.collaboratorInfo && (
+                                <div className="mt-1 pt-2 border-t border-gray-800">
+                                    {(teamMember.collaboratorInfo.startDate || teamMember.collaboratorInfo.endDate) && (
+                                        <div className="text-xs text-gray-400">
+                                            <span className="text-gray-500 uppercase tracking-wide mr-1">Plazo:</span>
+                                            {teamMember.collaboratorInfo.startDate || '?'} <span className="text-gray-600 mx-1">➜</span> {teamMember.collaboratorInfo.endDate || '?'}
+                                        </div>
+                                    )}
+                                    {teamMember.collaboratorInfo.partialDeliveries && teamMember.collaboratorInfo.partialDeliveries.length > 0 && (
+                                        <div className="mt-1.5">
+                                            <span className="text-xs text-gray-500 uppercase tracking-wide">Hitos:</span>
+                                            <ul className="mt-1 space-y-0.5">
+                                                {teamMember.collaboratorInfo.partialDeliveries.map(pd => (
+                                                    <li key={pd.id} className="text-xs flex items-center gap-1.5">
+                                                        <span className={pd.completed ? 'text-green-500' : 'text-gray-600'}>{pd.completed ? '✓' : '○'}</span>
+                                                        <span className={pd.completed ? 'text-gray-500 line-through' : 'text-gray-300'}>{pd.description}</span>
+                                                        <span className="text-gray-600 font-mono">{pd.date}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            {teamMember?.type === MemberType.Internal && teamMember.internalCostInfo?.workRanges && teamMember.internalCostInfo.workRanges.length > 0 && (
+                                <div className="mt-1 pt-2 border-t border-gray-800 space-y-2">
+                                    {teamMember.internalCostInfo.workRanges.map(range => (
+                                        <div key={range.id}>
+                                            <div className="text-xs text-gray-400">
+                                                <span className="text-gray-500 uppercase tracking-wide mr-1">Plazo{range.taskName ? ` (${range.taskName})` : ''}:</span>
+                                                {range.startDate || '?'} <span className="text-gray-600 mx-1">➜</span> {range.endDate || '?'}
+                                            </div>
+                                            {range.partialDeliveries && range.partialDeliveries.length > 0 && (
+                                                <ul className="mt-1 space-y-0.5">
+                                                    {range.partialDeliveries.map(pd => (
+                                                        <li key={pd.id} className="text-xs flex items-center gap-1.5">
+                                                            <span className={pd.completed ? 'text-green-500' : 'text-gray-600'}>{pd.completed ? '✓' : '○'}</span>
+                                                            <span className={pd.completed ? 'text-gray-500 line-through' : 'text-gray-300'}>{pd.description}</span>
+                                                            <span className="text-gray-600 font-mono">{pd.date}</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </li>
                     )
                 })}
