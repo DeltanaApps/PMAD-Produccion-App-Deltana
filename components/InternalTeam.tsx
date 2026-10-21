@@ -420,7 +420,7 @@ const MemberRow: React.FC<{
                                 <button 
                                     onClick={() => setIsEditingMember(true)}
                                     className="text-gray-400 hover:text-sky-400 p-1 rounded hover:bg-gray-700/80 transition-colors"
-                                    title="Editar o reasignar recurso a Equipo Global"
+                                    title="Editar o reasignar recurso en Recursos"
                                 >
                                     <PencilIcon className="w-3.5 h-3.5" />
                                 </button>
@@ -793,10 +793,10 @@ const MemberRow: React.FC<{
                         {/* Option 1: Reassign to Global Member */}
                         <div className="bg-gray-900/80 p-3.5 rounded-lg border border-gray-700 mb-4">
                             <label className="block text-xs font-bold text-sky-400 uppercase mb-1.5">
-                                1. Reasignar a un Miembro de Equipo Global:
+                                1. Reasignar a un Recurso Existente:
                             </label>
                             <p className="text-[11px] text-gray-400 mb-2">
-                                Vincula este recurso a uno ya existente en tu base de datos de Equipo Global. Todos sus fichajes e historial se actualizarán al recurso seleccionado.
+                                Vincula este recurso a uno ya existente en tu base de datos de Recursos. Todos sus fichajes e historial se actualizarán al recurso seleccionado.
                             </p>
                             <div className="flex gap-2">
                                 <select
@@ -804,7 +804,7 @@ const MemberRow: React.FC<{
                                     onChange={(e) => setSelectedGlobalContact(e.target.value)}
                                     className="bg-gray-800 border border-gray-600 text-white text-xs rounded px-3 py-2 flex-1 focus:outline-none focus:border-sky-500"
                                 >
-                                    <option value="">-- Seleccionar de Equipo Global --</option>
+                                    <option value="">-- Seleccionar de Recursos --</option>
                                     {availableGlobalMembers
                                         .filter(m => m.contact !== member.contact)
                                         .map(m => (
@@ -1287,20 +1287,20 @@ const ProjectSection: React.FC<{
                         </div>
                     )}
 
-                    {/* Selector to add member from Equipo Global */}
+                    {/* Selector to add member from Recursos */}
                     {unassignedGlobalMembers.length > 0 && (
                         <div className="mt-4 pt-4 border-t border-gray-700/60 flex flex-wrap items-center justify-between gap-3 bg-gray-900/40 p-3 rounded-lg">
                             <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-gray-300">¿Añadir otro recurso de Equipo Global a este proyecto?</span>
+                                <span className="text-xs font-bold text-gray-300">¿Añadir otro recurso existente a este proyecto?</span>
                             </div>
-                            
+
                             <div className="flex items-center gap-2">
                                 <select
                                     value={selectedAddMemberContact}
                                     onChange={(e) => setSelectedAddMemberContact(e.target.value)}
                                     className="bg-gray-800 border border-gray-600 text-white text-xs rounded px-3 py-1.5 focus:outline-none focus:border-sky-500"
                                 >
-                                    <option value="">-- Seleccionar Recurso de Equipo Global --</option>
+                                    <option value="">-- Seleccionar Recurso --</option>
                                     {unassignedGlobalMembers.map(m => (
                                         <option key={m.contact} value={m.contact}>
                                             {m.name} ({m.role || 'Recurso Interno'})

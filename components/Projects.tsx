@@ -223,7 +223,7 @@ const Projects: React.FC<ProjectsProps> = ({ projects, internalRates, onAddProje
                         <p className="text-2xl font-bold text-white mt-1">{formatEuro(completedFinancials.totalIncome)}</p>
                    </Card>
                    <Card className="bg-gray-800 border-l-4 border-purple-500">
-                        <p className="text-xs text-gray-400 uppercase tracking-wider">Gastos Equipo Interno</p>
+                        <p className="text-xs text-gray-400 uppercase tracking-wider">Gastos Recursos Internos</p>
                         <p className="text-2xl font-bold text-white mt-1">{formatEuro(completedFinancials.totalInternalCost)}</p>
                    </Card>
                    <Card className="bg-gray-800 border-l-4 border-pink-500">

@@ -117,7 +117,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onExport
         )}
         <NavItem
           icon={<TeamIcon className={iconClass} />}
-          label="Equipo Global"
+          label="Recursos"
           isActive={currentView === 'team'}
           onClick={() => setCurrentView('team')}
         />

@@ -499,7 +499,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
                              </div>
                              {newMemberType === MemberType.Internal && (
                                 <div className="col-span-2">
-                                    <label className="block text-xs font-medium text-gray-400 mb-1">Tipo de Equipo Interno</label>
+                                    <label className="block text-xs font-medium text-gray-400 mb-1">Tipo de Recurso Interno</label>
                                     <select 
                                         value={newInternalMemberType} 
                                         onChange={(e) => setNewInternalMemberType(e.target.value)} 

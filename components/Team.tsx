@@ -181,12 +181,12 @@ const Team: React.FC<TeamProps> = ({ projects, internalRates, onUpdateRate, onUp
                                     <button 
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            if (window.confirm(`¿Estás seguro de que deseas eliminar a "${member.name}" de Equipo Global?`)) {
+                                            if (window.confirm(`¿Estás seguro de que deseas eliminar a "${member.name}" de Recursos?`)) {
                                                 onDeleteMember(member.contact);
                                             }
                                         }}
                                         className="text-gray-500 hover:text-red-400 p-1.5 rounded hover:bg-gray-700/60 transition-colors"
-                                        title="Eliminar de Equipo Global"
+                                        title="Eliminar de Recursos"
                                     >
                                         <TrashIcon className="w-4 h-4" />
                                     </button>
@@ -203,21 +203,21 @@ const Team: React.FC<TeamProps> = ({ projects, internalRates, onUpdateRate, onUp
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-8 text-white">Equipo y Colaboradores</h1>
-      
+      <h1 className="text-3xl font-bold mb-8 text-white">Recursos</h1>
+
       <div className="space-y-12">
         <div>
           <h2 className="text-2xl font-semibold mb-4 text-sky-400 flex items-center gap-3">
             <span className="w-3 h-3 bg-sky-400 rounded-full"></span>
-            Equipo Interno
+            Recursos Internos
           </h2>
           {renderTeamTable(internalMembers)}
         </div>
-        
+
         <div>
           <h2 className="text-2xl font-semibold mb-4 text-purple-400 flex items-center gap-3">
              <span className="w-3 h-3 bg-purple-400 rounded-full"></span>
-            Colaboradores Externos
+            Recursos Externos
           </h2>
           {renderTeamTable(externalMembers)}
         </div>
