@@ -21,6 +21,7 @@ const NavItem: React.FC<{
   onClick: () => void;
   badgeCount?: number;
 }> = ({ icon, label, isActive, onClick, badgeCount }) => {
+  const isLongLabel = label.length > 20;
   return (
     <button
       onClick={onClick}
@@ -30,7 +31,7 @@ const NavItem: React.FC<{
           : 'text-gray-400 hover:bg-gray-700 hover:text-white'
       }`}
     >
-      <span className="relative inline-flex">
+      <span className="relative inline-flex flex-shrink-0">
         {icon}
         {!!badgeCount && (
           <span
@@ -41,7 +42,7 @@ const NavItem: React.FC<{
           </span>
         )}
       </span>
-      <span className="ml-4 hidden md:inline">{label}</span>
+      <span className={`ml-4 hidden md:inline text-left leading-tight ${isLongLabel ? 'text-[11px]' : ''}`}>{label}</span>
       {!!badgeCount && (
         <span className="ml-auto hidden md:inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[11px] font-bold">
           {badgeCount > 99 ? '99+' : badgeCount}
