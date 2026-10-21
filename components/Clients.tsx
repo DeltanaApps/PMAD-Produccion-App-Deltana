@@ -368,7 +368,7 @@ const Clients: React.FC<ClientsProps> = ({ projects, onAddClient, onEditFinancia
   return (
     <div>
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-white">Gestión de Clientes</h1>
+        <h1 className="text-3xl font-bold text-white">{readOnly ? 'Gestión de Clientes' : 'Mis Clientes'}</h1>
         <div className="flex items-center gap-3">
           {managerOptions.length > 0 && (
             <select

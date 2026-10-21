@@ -110,7 +110,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onExport
         {!canViewExecutiveDashboard && (
           <NavItem
             icon={<BriefcaseIcon className={iconClass} />}
-            label="Coste Interno"
+            label="Gestión de Recursos Internos"
             isActive={currentView === 'internal-team'}
             onClick={() => setCurrentView('internal-team')}
           />
@@ -123,13 +123,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onExport
         />
         <NavItem
           icon={<ClientsIcon className={iconClass} />}
-          label="Clientes"
+          label={canViewExecutiveDashboard ? 'Clientes' : 'Mis Clientes'}
           isActive={currentView === 'clients'}
           onClick={() => setCurrentView('clients')}
         />
         <NavItem
           icon={<CollaboratorsIcon className={iconClass} />}
-          label="Colaboradores"
+          label="Gestión de Recursos Externos"
           isActive={currentView === 'collaborators'}
           onClick={() => setCurrentView('collaborators')}
         />

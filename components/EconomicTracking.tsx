@@ -272,7 +272,7 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
                     </div>
                 ) : (
                     <div className="p-3 bg-amber-950/30 rounded border border-amber-500/30 text-xs text-amber-300">
-                        ⚠️ No se ha subido ningún archivo de fichajes para este proyecto. Puedes cargarlo en la pestaña de <strong>Coste Interno</strong>.
+                        ⚠️ No se ha subido ningún archivo de fichajes para este proyecto. Puedes cargarlo en la pestaña de <strong>Gestión de Recursos Internos</strong>.
                     </div>
                 )}
 

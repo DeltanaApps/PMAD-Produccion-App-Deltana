@@ -1459,7 +1459,7 @@ const InternalTeam: React.FC<InternalTeamProps> = ({ projects, globalRates, avai
       <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                Coste Interno: Proyectado vs Real
+                Gestión de Recursos Internos: Proyectado vs Real
             </h1>
             <p className="text-gray-400 mt-2 max-w-3xl text-sm">
                 Compara las horas y costes proyectados (rangos estimados) con los <strong>fichajes reales</strong> extraídos de la plataforma de control horario.

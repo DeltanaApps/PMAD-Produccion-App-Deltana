@@ -315,7 +315,7 @@ const ProjectCollaboratorCard: React.FC<{ project: Project; collaborator: TeamMe
               </div>
             ) : (
                 <div className="p-4 bg-gray-800/50 rounded-lg text-center border-t border-gray-700/50 border-dashed">
-                    <p className="text-sm text-gray-500 italic">No se ha configurado información económica para este colaborador en este proyecto.</p>
+                    <p className="text-sm text-gray-500 italic">No se ha configurado información económica para este recurso externo en este proyecto.</p>
                 </div>
             )}
         </Card>
@@ -421,7 +421,7 @@ const Collaborators: React.FC<CollaboratorsProps> = ({ projects, loneCollaborato
     <>
       <div>
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-white">Gestión de Colaboradores</h1>
+          <h1 className="text-3xl font-bold text-white">Gestión de Recursos Externos</h1>
           <div className="flex items-center gap-3">
             {managerOptions.length > 0 && (
               <select
@@ -442,7 +442,7 @@ const Collaborators: React.FC<CollaboratorsProps> = ({ projects, loneCollaborato
                   className="flex items-center gap-2 bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700 transition-colors shadow-lg shadow-sky-900/30"
                 >
                   <PlusIcon className="w-5 h-5"/>
-                  Añadir Colaborador
+                  Añadir Recurso Externo
               </button>
             )}
           </div>
@@ -451,7 +451,7 @@ const Collaborators: React.FC<CollaboratorsProps> = ({ projects, loneCollaborato
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <aside className="md:col-span-1">
             <Card className="p-4 sticky top-6 max-h-[85vh] overflow-y-auto">
-              <h2 className="text-lg font-semibold mb-3 text-white border-b border-gray-700 pb-2">Colaboradores</h2>
+              <h2 className="text-lg font-semibold mb-3 text-white border-b border-gray-700 pb-2">Recursos Externos</h2>
               <ul className="space-y-1">
                 {collaborators.map(({ member, projects }) => (
                   <li key={member.contact}>
@@ -471,7 +471,7 @@ const Collaborators: React.FC<CollaboratorsProps> = ({ projects, loneCollaborato
                   </li>
                 ))}
               </ul>
-              {collaborators.length === 0 && <p className="text-gray-500 text-sm py-4 text-center">No hay colaboradores.</p>}
+              {collaborators.length === 0 && <p className="text-gray-500 text-sm py-4 text-center">No hay recursos externos.</p>}
             </Card>
           </aside>
           
@@ -538,7 +538,7 @@ const Collaborators: React.FC<CollaboratorsProps> = ({ projects, loneCollaborato
                             <span className="text-2xl font-bold text-gray-600">{selectedData.member.name.charAt(0)}</span>
                         </div>
                         <h3 className="text-lg font-semibold text-white">Sin asignaciones activas</h3>
-                        <p className="text-gray-400 mt-2 max-w-md mx-auto">Este colaborador está registrado pero no participa en ningún proyecto actualmente.</p>
+                        <p className="text-gray-400 mt-2 max-w-md mx-auto">Este recurso externo está registrado pero no participa en ningún proyecto actualmente.</p>
                         <p className="text-gray-500 text-sm mt-4">Para asignarlo, edita un proyecto existente desde la sección "Proyectos" y añádelo al equipo.</p>
                     </div>
                 </Card>
