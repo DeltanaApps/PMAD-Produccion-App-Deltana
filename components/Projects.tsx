@@ -173,7 +173,7 @@ const Projects: React.FC<ProjectsProps> = ({ projects, internalRates, onAddProje
   return (
     <div>
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-white">Proyectos</h1>
+        <h1 className="text-3xl font-bold text-white">{readOnly ? 'Proyectos' : 'Mis Proyectos'}</h1>
         <div className="flex items-center gap-4">
           <div className="flex space-x-1 bg-gray-800 p-1 rounded-lg">
             {TABS.map(tab => (

@@ -96,7 +96,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onExport
         )}
         <NavItem
           icon={<ProjectsIcon className={iconClass} />}
-          label="Proyectos"
+          label={canViewExecutiveDashboard ? 'Proyectos' : 'Mis Proyectos'}
           isActive={currentView === 'projects'}
           onClick={() => setCurrentView('projects')}
         />
