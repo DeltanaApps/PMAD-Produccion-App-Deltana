@@ -22,21 +22,6 @@ interface MemberProjectSummary {
 
 const Team: React.FC<TeamProps> = ({ projects, internalRates, onUpdateRate, onUpdateMemberType, onUpdateMemberName, onDeleteMember }) => {
   const [selectedMember, setSelectedMember] = useState<(TeamMember & { projects: MemberProjectSummary[] }) | null>(null);
-  const [editingContact, setEditingContact] = useState<string | null>(null);
-  const [editingNameValue, setEditingNameValue] = useState<string>('');
-
-  const handleStartEdit = (e: React.MouseEvent, member: TeamMember) => {
-    e.stopPropagation();
-    setEditingContact(member.contact);
-    setEditingNameValue(member.name);
-  };
-
-  const handleSaveInline = (contact: string) => {
-    if (editingNameValue.trim() && onUpdateMemberName) {
-      onUpdateMemberName(contact, editingNameValue.trim());
-    }
-    setEditingContact(null);
-  };
 
   const { internalMembers, externalMembers } = useMemo(() => {
     const memberMap = new Map<string, TeamMember & { projects: MemberProjectSummary[] }>();
@@ -77,11 +62,9 @@ const Team: React.FC<TeamProps> = ({ projects, internalRates, onUpdateRate, onUp
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Nombre
                 </th>
-                {members.length > 0 && members[0].type === MemberType.Internal && (
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Tipo
-                    </th>
-                )}
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Tipo
+                </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Rol
                 </th>
@@ -112,73 +95,37 @@ const Team: React.FC<TeamProps> = ({ projects, internalRates, onUpdateRate, onUp
                                     {member.name.split(' ').map(n=>n[0]).join('')}
                                 </div>
                                 <div className="ml-4">
-                                    {editingContact === member.contact ? (
-                                        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                                            <input 
-                                                type="text" 
-                                                value={editingNameValue} 
-                                                onChange={(e) => setEditingNameValue(e.target.value)}
-                                                className="bg-gray-900 border border-sky-500 rounded px-2 py-1 text-sm text-white focus:outline-none"
-                                                autoFocus
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') handleSaveInline(member.contact);
-                                                    if (e.key === 'Escape') setEditingContact(null);
-                                                }}
-                                            />
-                                            <button 
-                                                onClick={() => handleSaveInline(member.contact)}
-                                                className="bg-sky-600 hover:bg-sky-500 text-white px-2 py-1 rounded text-xs font-bold"
-                                                title="Guardar"
-                                            >
-                                                ✓
-                                            </button>
-                                            <button 
-                                                onClick={() => setEditingContact(null)}
-                                                className="text-gray-400 hover:text-white px-1.5 py-1 text-xs"
-                                                title="Cancelar"
-                                            >
-                                                ✕
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-2">
-                                            <button onClick={() => setSelectedMember(member)} className="text-sm font-medium text-white hover:text-sky-400 text-left transition-colors">
-                                                {member.name}
-                                            </button>
-                                            {onUpdateMemberName && (
-                                                <button 
-                                                    onClick={(e) => handleStartEdit(e, member)}
-                                                    className="text-gray-500 hover:text-sky-400 p-1 transition-colors opacity-60 hover:opacity-100"
-                                                    title="Modificar nombre"
-                                                >
-                                                    <PencilIcon className="w-3.5 h-3.5" />
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
+                                    <button onClick={() => setSelectedMember(member)} className="text-sm font-medium text-white hover:text-sky-400 text-left transition-colors">
+                                        {member.name}
+                                    </button>
                                     {member.company && <div className="text-xs text-gray-400">{member.company}</div>}
                                 </div>
                             </div>
                             </td>
-                            {member.type === MemberType.Internal && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                                    {member.internalMemberType || '-'}
-                                </td>
-                            )}
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                {member.type === MemberType.Internal ? (member.internalMemberType || 'Recurso Interno') : 'Recurso Externo'}
+                            </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{member.role}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-sky-400">
                                 <a href={`mailto:${member.contact}`} className="hover:underline">{member.contact}</a>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                                <div className="flex gap-3">
+                                <button onClick={() => setSelectedMember(member)} className="flex gap-3 hover:underline" title="Ver proyectos">
                                     <span className="text-green-400 font-medium" title="Proyectos Activos En Curso">{activeCount} Activos</span>
                                     <span className="text-gray-500">/</span>
                                     <span className="text-gray-400" title="Proyectos Finalizados o Inactivos">{inactiveCount} Históricos</span>
-                                </div>
+                                </button>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                                <button
+                                    onClick={() => setSelectedMember(member)}
+                                    className="text-gray-500 hover:text-sky-400 p-1.5 rounded hover:bg-gray-700/60 transition-colors"
+                                    title="Editar"
+                                >
+                                    <PencilIcon className="w-4 h-4" />
+                                </button>
                                 {onDeleteMember && (
-                                    <button 
+                                    <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             if (window.confirm(`¿Estás seguro de que deseas eliminar a "${member.name}" de Recursos?`)) {
