@@ -5,7 +5,7 @@ import { MEMBER_TYPE_TO_DB } from '../enumMappers';
 
 export async function saveNewCollaborator(data: Omit<TeamMember, 'type'>): Promise<void> {
   const { error } = await supabase.from('team_members').insert({
-    contact: data.contact,
+    contact: data.contact.trim(),
     name: data.name,
     company: data.company ?? null,
     member_type: MEMBER_TYPE_TO_DB[MemberType.External],

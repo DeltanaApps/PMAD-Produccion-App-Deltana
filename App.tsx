@@ -474,23 +474,29 @@ const App: React.FC = () => {
   const handleCloseAddCollaboratorModal = () => setAddCollaboratorModalOpen(false);
 
   const handleSaveNewCollaborator = (collaboratorData: Omit<TeamMember, 'type' | 'projects'>) => {
+    // Case/whitespace-insensitive so "Pedro@x.com" and "pedro@x.com " are
+    // recognized as the same person already in the shared catalog, instead
+    // of creating a near-duplicate.
+    const normalize = (contact: string) => contact.trim().toLowerCase();
     const allContacts = new Set([
-      ...projects.flatMap(p => p.team.map(m => m.contact)),
-      ...loneCollaborators.map(c => c.contact)
+      ...projects.flatMap(p => p.team.map(m => normalize(m.contact))),
+      ...loneCollaborators.map(c => normalize(c.contact))
     ]);
 
-    if (allContacts.has(collaboratorData.contact)) {
+    const trimmedContact = collaboratorData.contact.trim();
+    if (allContacts.has(normalize(trimmedContact))) {
       alert("Ya existe un miembro del equipo con este email de contacto.");
       return;
     }
 
     const newCollaborator: TeamMember = {
       ...collaboratorData,
+      contact: trimmedContact,
       type: MemberType.External,
     };
 
     setLoneCollaborators([...loneCollaborators, newCollaborator]);
-    apiSaveNewCollaborator(collaboratorData).catch(handlePersistError);
+    apiSaveNewCollaborator(newCollaborator).catch(handlePersistError);
     handleCloseAddCollaboratorModal();
   };
 

@@ -8,11 +8,15 @@ import type {
 } from '../../types';
 import { PROJECT_STATUS_TO_DB, MEMBER_TYPE_TO_DB, INVOICE_SOURCE_TO_DB } from '../enumMappers';
 
+// Matching is case-insensitive and trims whitespace so "Pedro@x.com" and
+// "pedro@x.com " reuse the same shared catalog row instead of creating a
+// near-duplicate person (same spirit as findOrCreateClientId below).
 async function findOrCreateTeamMemberId(member: TeamMember): Promise<string> {
+  const trimmedContact = member.contact.trim();
   const { data: existing, error: findError } = await supabase
     .from('team_members')
     .select('id')
-    .eq('contact', member.contact)
+    .ilike('contact', trimmedContact)
     .maybeSingle();
   if (findError) throw findError;
   if (existing) return existing.id;
@@ -20,7 +24,7 @@ async function findOrCreateTeamMemberId(member: TeamMember): Promise<string> {
   const { data: created, error: createError } = await supabase
     .from('team_members')
     .insert({
-      contact: member.contact,
+      contact: trimmedContact,
       name: member.name,
       company: member.company ?? null,
       member_type: MEMBER_TYPE_TO_DB[member.type],
