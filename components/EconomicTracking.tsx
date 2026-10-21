@@ -337,7 +337,7 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
                     );
                 })}
                 <div className="border-t border-gray-700 pt-3 flex justify-between items-center">
-                    <span className="font-bold text-white">Total Colaboradores</span>
+                    <span className="font-bold text-white">Total Coste Recursos Externos</span>
                     <span className="font-bold text-xl text-purple-400">{formatEuro(data.externalCosts)}</span>
                 </div>
             </div>
@@ -390,7 +390,7 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
 
                 <div className="bg-gray-700/20 p-4 rounded-lg">
                     <p className="text-xs text-gray-500 italic text-center">
-                        * Cálculo: Presupuesto Total - ({isActual ? 'Gasto Interno Real de Fichajes' : 'Gasto Interno Proyectado'} + Coste Colaboradores).
+                        * Cálculo: Presupuesto Total - ({isActual ? 'Gasto Interno Real de Fichajes' : 'Gasto Interno Proyectado'} + Coste Recursos Externos).
                     </p>
                 </div>
             </div>
@@ -427,11 +427,11 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="border-b border-gray-700 text-[10px] uppercase text-gray-400 tracking-wider bg-gray-900/80">
-                            <th className="py-4 px-4">Proyecto</th>
+                            <th className="py-4 px-4">Mis Proyectos</th>
                             <th className="py-4 px-4 text-right">Presupuesto</th>
                             <th className="py-4 px-4 text-right">Gasto Int. Proyectado</th>
                             <th className="py-4 px-4 text-right text-emerald-400 font-bold">Gasto Int. Real (Fichaje)</th>
-                            <th className="py-4 px-4 text-right">Colaboradores</th>
+                            <th className="py-4 px-4 text-right">Coste Recursos Externos</th>
                             <th className="py-4 px-4 text-right">Beneficio Proyectado</th>
                             <th className="py-4 px-4 text-right text-emerald-400 font-bold">Beneficio Real a Fecha</th>
                         </tr>
@@ -537,7 +537,7 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
                         modalData.type === 'budget' ? `Desglose Presupuesto: ${modalData.project.name}` :
                         modalData.type === 'internal-projected' ? `Desglose Gasto Interno Proyectado: ${modalData.project.name}` :
                         modalData.type === 'internal-actual' ? `Desglose Gasto Interno Real (Fichajes): ${modalData.project.name}` :
-                        modalData.type === 'external' ? `Desglose Colaboradores: ${modalData.project.name}` :
+                        modalData.type === 'external' ? `Desglose Coste Recursos Externos: ${modalData.project.name}` :
                         modalData.type === 'target-projected' ? `Análisis Beneficio Proyectado: ${modalData.project.name}` :
                         `Análisis Beneficio Real a Fecha: ${modalData.project.name}`
                     }

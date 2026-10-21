@@ -93,7 +93,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ project, intern
               <span>{project.startDate || '?'} <span className="text-gray-600 mx-1">➜</span> {project.endDate || '?'}</span>
             </div>
             <div className="md:col-span-2 text-sm text-gray-400">
-              {project.statusDetail || <span className="italic text-gray-600">Sin detalle de estado.</span>}
+              {project.statusDetail || <span className="italic text-gray-600">Sin observaciones.</span>}
             </div>
             {project.status === ProjectStatus.Completed && (
               <div className="md:col-span-3 flex items-center gap-2 text-xs pt-2 border-t border-gray-700/40">

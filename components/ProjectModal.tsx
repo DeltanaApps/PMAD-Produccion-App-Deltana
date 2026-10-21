@@ -276,7 +276,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
                         <Input label="Código" value={code} onChange={(e) => setCode(e.target.value)} placeholder="EJ: 25-001" required />
                      </div>
                      <div className="col-span-2">
-                         <Input label="Nombre del Proyecto" value={name} onChange={(e) => setName(e.target.value)} required />
+                         <Input label="Nombre Resumido de Proyecto" value={name} onChange={(e) => setName(e.target.value)} required />
                      </div>
                 </div>
 
@@ -344,7 +344,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
                 )}
             
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Detalle del Estado</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Observaciones</label>
                     <textarea value={statusDetail} onChange={(e) => setStatusDetail(e.target.value)} rows={2} className="w-full bg-gray-900 border border-gray-700 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-sky-500 focus:border-sky-500"/>
                 </div>
 
