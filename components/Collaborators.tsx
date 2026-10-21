@@ -360,7 +360,7 @@ const Collaborators: React.FC<CollaboratorsProps> = ({ projects, loneCollaborato
 
     if (managerFilter === 'all') {
       loneCollaborators.forEach(member => {
-          if (!collaboratorMap.has(member.contact)) {
+          if (member.type === MemberType.External && !collaboratorMap.has(member.contact)) {
               collaboratorMap.set(member.contact, { member, projects: [] });
           }
       });

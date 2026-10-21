@@ -806,7 +806,7 @@ const MemberRow: React.FC<{
                                 >
                                     <option value="">-- Seleccionar de Recursos --</option>
                                     {availableGlobalMembers
-                                        .filter(m => m.contact !== member.contact)
+                                        .filter(m => m.type === MemberType.Internal && m.contact !== member.contact)
                                         .map(m => (
                                             <option key={m.contact} value={m.contact}>
                                                 {m.name} ({m.role || 'Recurso Interno'}) - {m.contact}
