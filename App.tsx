@@ -43,6 +43,7 @@ import {
 import {
   saveNewCollaborator as apiSaveNewCollaborator,
   updateMemberName as apiUpdateMemberName,
+  updateMemberContact as apiUpdateMemberContact,
   updateGlobalRate as apiUpdateGlobalRate,
   updateInternalMemberType as apiUpdateInternalMemberType,
   deleteGlobalMember as apiDeleteGlobalMember,
@@ -500,6 +501,25 @@ const App: React.FC = () => {
 
   const handleUpdateCollaboratorName = handleUpdateMemberName;
 
+  // Unlike name/rate edits (fire-and-forget, optimistic), this awaits the
+  // server write before touching local state: "contact" is the key used to
+  // match this member everywhere (projects, internalRates, loneCollaborators),
+  // and it's unique in the DB, so a silent failure (e.g. duplicate email)
+  // must not leave the UI showing an email that was never actually saved.
+  const handleUpdateMemberContact = async (contact: string, newContact: string): Promise<void> => {
+    await apiUpdateMemberContact(contact, newContact);
+    setLoneCollaborators(prev => prev.map(c => c.contact === contact ? { ...c, contact: newContact } : c));
+    setProjects(prev => prev.map(p => ({
+      ...p,
+      team: p.team.map(m => m.contact === contact ? { ...m, contact: newContact } : m)
+    })));
+    setInternalRates(prev => {
+      if (!(contact in prev)) return prev;
+      const { [contact]: rate, ...rest } = prev;
+      return { ...rest, [newContact]: rate };
+    });
+  };
+
   // Handle global internal rate updates
   const handleUpdateGlobalRate = (contact: string, rate: number) => {
       setInternalRates(prev => ({
@@ -550,6 +570,7 @@ const App: React.FC = () => {
                   onUpdateRate={isTeamReadOnly ? undefined : handleUpdateGlobalRate}
                   onUpdateMemberType={isTeamReadOnly ? undefined : handleUpdateInternalMemberType}
                   onUpdateMemberName={isTeamReadOnly ? undefined : handleUpdateMemberName}
+                  onUpdateMemberContact={isTeamReadOnly ? undefined : handleUpdateMemberContact}
                   onDeleteMember={isTeamReadOnly ? undefined : handleDeleteGlobalMember}
                />;
       }

@@ -12,6 +12,7 @@ interface TeamMemberModalProps {
   onUpdateRate?: (rate: number) => void;
   onUpdateMemberType?: (type: string) => void;
   onUpdateMemberName?: (newName: string) => void;
+  onUpdateMemberContact?: (newContact: string) => Promise<void>;
   onClose: () => void;
 }
 
@@ -28,7 +29,7 @@ const CloseIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 
-const TeamMemberModal: React.FC<TeamMemberModalProps> = ({ member, projects, internalRate, onUpdateRate, onUpdateMemberType, onUpdateMemberName, onClose }) => {
+const TeamMemberModal: React.FC<TeamMemberModalProps> = ({ member, projects, internalRate, onUpdateRate, onUpdateMemberType, onUpdateMemberName, onUpdateMemberContact, onClose }) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(member.name);
 
@@ -40,6 +41,44 @@ const TeamMemberModal: React.FC<TeamMemberModalProps> = ({ member, projects, int
     if (nameValue.trim() && onUpdateMemberName) {
       onUpdateMemberName(nameValue.trim());
       setIsEditingName(false);
+    }
+  };
+
+  const [isEditingContact, setIsEditingContact] = useState(false);
+  const [contactValue, setContactValue] = useState(member.contact);
+  const [contactError, setContactError] = useState<string | null>(null);
+  const [isSavingContact, setIsSavingContact] = useState(false);
+
+  useEffect(() => {
+    setContactValue(member.contact);
+  }, [member.contact]);
+
+  const cancelEditContact = () => {
+    setContactValue(member.contact);
+    setContactError(null);
+    setIsEditingContact(false);
+  };
+
+  const handleSaveContact = async () => {
+    const trimmed = contactValue.trim();
+    if (!onUpdateMemberContact || !trimmed) return;
+    if (trimmed === member.contact) {
+      setIsEditingContact(false);
+      return;
+    }
+    setIsSavingContact(true);
+    setContactError(null);
+    try {
+      await onUpdateMemberContact(trimmed);
+      setIsEditingContact(false);
+    } catch (err: any) {
+      setContactError(
+        err?.code === '23505'
+          ? 'Ya existe otro recurso con ese correo electrónico.'
+          : 'No se pudo guardar el cambio.'
+      );
+    } finally {
+      setIsSavingContact(false);
     }
   };
 
@@ -191,8 +230,53 @@ const TeamMemberModal: React.FC<TeamMemberModalProps> = ({ member, projects, int
                     )}
 
                     <p className="text-md text-gray-400">{member.role}</p>
-                    <a href={`mailto:${member.contact}`} className="text-sky-400 hover:underline">{member.contact}</a>
-                    
+                    {isEditingContact ? (
+                        <div className="flex flex-col gap-1 mt-1">
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="email"
+                                    value={contactValue}
+                                    onChange={(e) => setContactValue(e.target.value)}
+                                    className="bg-gray-900 border border-sky-500 rounded px-2 py-1 text-sm text-sky-300 focus:outline-none"
+                                    autoFocus
+                                    disabled={isSavingContact}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleSaveContact();
+                                        if (e.key === 'Escape') cancelEditContact();
+                                    }}
+                                />
+                                <button
+                                    onClick={handleSaveContact}
+                                    disabled={isSavingContact}
+                                    className="bg-sky-600 hover:bg-sky-500 text-white px-2 py-1 rounded text-xs font-bold disabled:opacity-50"
+                                >
+                                    {isSavingContact ? '...' : 'Guardar'}
+                                </button>
+                                <button
+                                    onClick={cancelEditContact}
+                                    disabled={isSavingContact}
+                                    className="text-gray-400 hover:text-white text-xs px-2 py-1"
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
+                            {contactError && <span className="text-xs text-red-400">{contactError}</span>}
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2">
+                            <a href={`mailto:${member.contact}`} className="text-sky-400 hover:underline">{member.contact}</a>
+                            {onUpdateMemberContact && (
+                                <button
+                                    onClick={() => { setContactValue(member.contact); setContactError(null); setIsEditingContact(true); }}
+                                    className="text-gray-400 hover:text-sky-400 transition-colors p-1"
+                                    title="Modificar correo"
+                                >
+                                    <PencilIcon className="w-3.5 h-3.5" />
+                                </button>
+                            )}
+                        </div>
+                    )}
+
                     {/* Internal Rate Input */}
                     {member.type === MemberType.Internal && onUpdateRate && (
                         <div className="mt-2 flex items-center gap-2">

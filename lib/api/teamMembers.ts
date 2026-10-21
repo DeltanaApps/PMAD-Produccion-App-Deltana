@@ -19,6 +19,11 @@ export async function updateMemberName(contact: string, newName: string): Promis
   if (error) throw error;
 }
 
+export async function updateMemberContact(contact: string, newContact: string): Promise<void> {
+  const { error } = await supabase.from('team_members').update({ contact: newContact }).eq('contact', contact);
+  if (error) throw error;
+}
+
 export async function updateGlobalRate(contact: string, rate: number): Promise<void> {
   const { error } = await supabase
     .from('team_members')

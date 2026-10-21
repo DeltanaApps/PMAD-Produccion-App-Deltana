@@ -11,6 +11,7 @@ interface TeamProps {
   onUpdateRate?: (contact: string, rate: number) => void;
   onUpdateMemberType?: (contact: string, type: string) => void;
   onUpdateMemberName?: (contact: string, newName: string) => void;
+  onUpdateMemberContact?: (contact: string, newContact: string) => Promise<void>;
   onDeleteMember?: (contact: string) => void;
 }
 
@@ -20,7 +21,7 @@ interface MemberProjectSummary {
     projectStatus: ProjectStatus;
 }
 
-const Team: React.FC<TeamProps> = ({ projects, internalRates, onUpdateRate, onUpdateMemberType, onUpdateMemberName, onDeleteMember }) => {
+const Team: React.FC<TeamProps> = ({ projects, internalRates, onUpdateRate, onUpdateMemberType, onUpdateMemberName, onUpdateMemberContact, onDeleteMember }) => {
   const [selectedMember, setSelectedMember] = useState<(TeamMember & { projects: MemberProjectSummary[] }) | null>(null);
 
   const { internalMembers, externalMembers } = useMemo(() => {
@@ -180,6 +181,10 @@ const Team: React.FC<TeamProps> = ({ projects, internalRates, onUpdateRate, onUp
           onUpdateMemberName={onUpdateMemberName ? (newName) => {
             onUpdateMemberName(selectedMember.contact, newName);
             setSelectedMember(prev => prev ? { ...prev, name: newName } : null);
+          } : undefined}
+          onUpdateMemberContact={onUpdateMemberContact ? async (newContact) => {
+            await onUpdateMemberContact(selectedMember.contact, newContact);
+            setSelectedMember(prev => prev ? { ...prev, contact: newContact } : null);
           } : undefined}
           onClose={() => setSelectedMember(null)} 
         />
