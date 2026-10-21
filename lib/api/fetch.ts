@@ -115,7 +115,7 @@ interface ProjectRow {
   code: string | null;
   name: string;
   export_name: string | null;
-  client: string;
+  client: { name: string } | null;
   status: string;
   status_detail: string | null;
   start_date: string | null;
@@ -133,7 +133,7 @@ interface ProjectRow {
 }
 
 const PROJECT_SELECT = `
-  id, code, name, export_name, client, status, status_detail, start_date, end_date, closing_email_sent,
+  id, code, name, export_name, client:clients(name), status, status_detail, start_date, end_date, closing_email_sent,
   contacts:project_contacts(id, contact_group, name, email, phone, description),
   partial_deliveries:project_partial_deliveries(id, description, date, completed),
   client_agreement:project_client_agreement(amount, offer_url, contract_url),
@@ -300,7 +300,7 @@ const mapProject = (row: ProjectRow): Project => ({
   code: row.code ?? '',
   name: row.name,
   exportName: row.export_name ?? undefined,
-  client: row.client,
+  client: row.client?.name ?? '',
   status: PROJECT_STATUS_FROM_DB[row.status],
   statusDetail: row.status_detail ?? '',
   startDate: row.start_date ?? undefined,
@@ -386,6 +386,15 @@ export async function fetchLoneCollaborators(): Promise<TeamMember[]> {
       contact: m.contact,
       type: MEMBER_TYPE_FROM_DB[m.member_type],
     }));
+}
+
+// Shared client directory: every gestor sees every client ever created by
+// any gestor (not just their own projects' clients), so "Nuevo Proyecto"
+// can reuse an existing client instead of creating a near-duplicate.
+export async function fetchClients(): Promise<string[]> {
+  const { data, error } = await supabase.from('clients').select('name').order('name');
+  if (error) throw error;
+  return (data as { name: string }[]).map((row) => row.name);
 }
 
 export async function fetchInternalRates(): Promise<Record<string, number>> {

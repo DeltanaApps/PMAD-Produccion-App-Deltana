@@ -32,6 +32,29 @@ async function findOrCreateTeamMemberId(member: TeamMember): Promise<string> {
   return created.id;
 }
 
+// Resolves a client name to its shared clients.id, creating the row the
+// first time any gestor types that name. Matching is case-insensitive so
+// "Acme Corp" and "acme corp" reuse the same client instead of creating a
+// near-duplicate.
+async function findOrCreateClientId(name: string): Promise<string> {
+  const trimmed = name.trim();
+  const { data: existing, error: findError } = await supabase
+    .from('clients')
+    .select('id')
+    .ilike('name', trimmed)
+    .maybeSingle();
+  if (findError) throw findError;
+  if (existing) return existing.id;
+
+  const { data: created, error: createError } = await supabase
+    .from('clients')
+    .insert({ name: trimmed })
+    .select('id')
+    .single();
+  if (createError) throw createError;
+  return created.id;
+}
+
 async function findProjectMemberId(projectId: string, contact: string): Promise<string> {
   const { data: teamMember, error: tmError } = await supabase
     .from('team_members')
@@ -145,11 +168,12 @@ async function upsertProjectCore(
   projectData: Omit<Project, 'id'>,
   managerId: string
 ): Promise<void> {
+  const clientId = await findOrCreateClientId(projectData.client);
   const row = {
     code: projectData.code,
     name: projectData.name,
     export_name: projectData.exportName ?? null,
-    client: projectData.client,
+    client_id: clientId,
     status: PROJECT_STATUS_TO_DB[projectData.status],
     status_detail: projectData.statusDetail,
     start_date: projectData.startDate || null,

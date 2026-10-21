@@ -27,6 +27,7 @@ import {
   fetchInternalRates,
   fetchCurrentProfile,
   fetchProjectManagers,
+  fetchClients,
 } from './lib/api/fetch';
 import { updateMyThemePreference } from './lib/api/preferences';
 import { fetchInactiveProfilesCount } from './lib/api/admin';
@@ -131,6 +132,7 @@ const App: React.FC = () => {
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [currentUserLabel, setCurrentUserLabel] = useState<string | null>(null);
   const [projectManagers, setProjectManagers] = useState<Record<string, { id: string; name: string }>>({});
+  const [allClients, setAllClients] = useState<string[]>([]);
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
 
   // Track auth session
@@ -154,6 +156,7 @@ const App: React.FC = () => {
       setCurrentUserRole(null);
       setCurrentUserLabel(null);
       setProjectManagers({});
+      setAllClients([]);
       return;
     }
     setDataLoading(true);
@@ -162,8 +165,9 @@ const App: React.FC = () => {
       fetchLoneCollaborators(),
       fetchInternalRates(),
       fetchCurrentProfile(session.user.id),
+      fetchClients(),
     ])
-      .then(([loadedProjects, loadedLoneCollaborators, loadedRates, profile]) => {
+      .then(([loadedProjects, loadedLoneCollaborators, loadedRates, profile, loadedClients]) => {
         if (profile && profile.active === false) {
           alert('Tu cuenta todavía no tiene acceso habilitado en la app. Contactá a Administración para que te asigne un rol.');
           supabase.auth.signOut();
@@ -172,6 +176,7 @@ const App: React.FC = () => {
         setProjects(loadedProjects);
         setLoneCollaborators(loadedLoneCollaborators);
         setInternalRates(loadedRates);
+        setAllClients(loadedClients);
         setCurrentUserRole(profile?.role ?? null);
         setCurrentUserLabel(profile?.name || profile?.email || session.user.email || null);
         if (profile?.theme_preference === 'light' || profile?.theme_preference === 'dark') {
@@ -211,12 +216,6 @@ const App: React.FC = () => {
 
   // Client Financials Modal State
   const [editingClientProject, setEditingClientProject] = useState<Project | null>(null);
-
-  // Aggregate unique clients from projects
-  const availableClients = useMemo(() => {
-    const clients = new Set(projects.map(p => p.client));
-    return Array.from(clients).sort();
-  }, [projects]);
 
   // Aggregate all unique team members (internal and external) for dropdowns
   const availableTeamMembers = useMemo(() => {
@@ -703,7 +702,7 @@ const App: React.FC = () => {
       {isProjectModalOpen && (
         <ProjectModal
           project={editingProject}
-          availableClients={availableClients}
+          availableClients={allClients}
           availableTeamMembers={availableTeamMembers}
           onClose={handleCloseProjectModal}
           onSave={handleSaveProject}
