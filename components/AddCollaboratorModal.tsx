@@ -44,9 +44,8 @@ const AddCollaboratorModal: React.FC<AddCollaboratorModalProps> = ({ onClose, on
   };
 
   return (
-    <div 
+    <div
         className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 animate-fade-in"
-        onClick={onClose}
     >
       <style>{`
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }

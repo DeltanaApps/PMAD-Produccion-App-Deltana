@@ -32,7 +32,7 @@ interface DetailModalData {
 
 const DetailModal: React.FC<{ data: DetailModalData; onClose: () => void }> = ({ data, onClose }) => {
     return (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 animate-fade-in">
              <div className="bg-gray-800 rounded-lg shadow-2xl w-full max-w-lg overflow-hidden border border-gray-700" onClick={e => e.stopPropagation()}>
                 <div className="p-4 border-b border-gray-700 bg-gray-900 flex justify-between items-center">
                     <h3 className="text-lg font-bold text-white">{data.title}</h3>

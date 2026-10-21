@@ -294,7 +294,7 @@ const CollaboratorFinancialsModal: React.FC<CollaboratorFinancialsModalProps> = 
   const totalInvoiced = financials.invoices.reduce((sum, inv) => sum + inv.amount, 0);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 animate-fade-in">
       <style>{`.animate-fade-in { animation: fade-in 0.2s ease-out; } @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }`}</style>
       <Card className="w-full max-w-5xl max-h-[92vh] flex flex-col p-0" onClick={(e) => e.stopPropagation()}>
         {/* Header */}

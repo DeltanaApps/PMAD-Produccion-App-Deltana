@@ -20,7 +20,7 @@ const CloseIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const DashboardModal: React.FC<{ title: string; onClose: () => void; children: React.ReactNode }> = ({ title, onClose, children }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
+    <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4 animate-fade-in">
         <style>{`.animate-fade-in { animation: fade-in 0.2s ease-out; } @keyframes fade-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }`}</style>
         <Card className="w-full max-w-4xl max-h-[85vh] flex flex-col p-0 shadow-2xl border border-gray-700" onClick={(e) => e.stopPropagation()}>
             <div className="p-5 border-b border-gray-700 flex justify-between items-center bg-gray-800 rounded-t-lg">
