@@ -3,15 +3,13 @@ import React, { useState, useMemo } from 'react';
 import type { Project, TeamMember, CollaboratorInfo } from '../types';
 import { MemberType } from '../types';
 import Card from './ui/Card';
-import { PlusIcon, CalendarIcon, EyeIcon, LinkIcon, FileTextIcon } from './ui/Icons';
+import { CalendarIcon, EyeIcon, LinkIcon, FileTextIcon } from './ui/Icons';
 import CollaboratorFinancialsModal from './CollaboratorFinancialsModal';
 
 interface CollaboratorsProps {
   projects: Project[];
-  loneCollaborators: TeamMember[];
   onSaveFinancials: (projectId: string, memberContact: string, financialInfo: CollaboratorInfo) => void;
   onRemoveFromProject: (projectId: string, memberContact: string) => boolean;
-  onAddCollaborator: () => void;
   onUpdateCollaboratorName: (contact: string, newName: string) => void;
   projectManagers?: Record<string, { id: string; name: string }>;
   readOnly?: boolean;
@@ -322,7 +320,7 @@ const ProjectCollaboratorCard: React.FC<{ project: Project; collaborator: TeamMe
     );
 }
 
-const Collaborators: React.FC<CollaboratorsProps> = ({ projects, loneCollaborators, onSaveFinancials, onRemoveFromProject, onAddCollaborator, onUpdateCollaboratorName, projectManagers, readOnly }) => {
+const Collaborators: React.FC<CollaboratorsProps> = ({ projects, onSaveFinancials, onRemoveFromProject, onUpdateCollaboratorName, projectManagers, readOnly }) => {
   const [selectedCollaborator, setSelectedCollaborator] = useState<string | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState('');
@@ -345,6 +343,9 @@ const Collaborators: React.FC<CollaboratorsProps> = ({ projects, loneCollaborato
     return projects.filter(p => projectManagers?.[p.id]?.id === managerFilter);
   }, [projects, projectManagers, managerFilter]);
 
+  // Only externals the logged-in gestor actually has on one of their own
+  // (visible) projects -- the full shared catalog (including ones with zero
+  // projects, or assigned to another gestor) lives in "Recursos" instead.
   const collaborators = useMemo(() => {
     const collaboratorMap = new Map<string, { member: TeamMember, projects: Project[] }>();
     filteredProjects.forEach(project => {
@@ -358,16 +359,8 @@ const Collaborators: React.FC<CollaboratorsProps> = ({ projects, loneCollaborato
       });
     });
 
-    if (managerFilter === 'all') {
-      loneCollaborators.forEach(member => {
-          if (member.type === MemberType.External && !collaboratorMap.has(member.contact)) {
-              collaboratorMap.set(member.contact, { member, projects: [] });
-          }
-      });
-    }
-
     return Array.from(collaboratorMap.values()).sort((a,b) => a.member.name.localeCompare(b.member.name));
-  }, [filteredProjects, loneCollaborators, managerFilter]);
+  }, [filteredProjects]);
 
   if (collaborators.length > 0 && (!selectedCollaborator || !collaborators.some(c => c.member.contact === selectedCollaborator))) {
       setSelectedCollaborator(collaborators[0].member.contact);
@@ -435,15 +428,6 @@ const Collaborators: React.FC<CollaboratorsProps> = ({ projects, loneCollaborato
                   <option key={id} value={id}>{name}</option>
                 ))}
               </select>
-            )}
-            {!readOnly && (
-              <button
-                  onClick={onAddCollaborator}
-                  className="flex items-center gap-2 bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700 transition-colors shadow-lg shadow-sky-900/30"
-                >
-                  <PlusIcon className="w-5 h-5"/>
-                  Añadir Recurso Externo
-              </button>
             )}
           </div>
         </div>
@@ -530,19 +514,6 @@ const Collaborators: React.FC<CollaboratorsProps> = ({ projects, loneCollaborato
                     })}
                  </div>
              )}
-             
-             {selectedData && selectedData.projects.length === 0 && (
-                <Card>
-                    <div className="text-center py-12">
-                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-800 mb-4">
-                            <span className="text-2xl font-bold text-gray-600">{selectedData.member.name.charAt(0)}</span>
-                        </div>
-                        <h3 className="text-lg font-semibold text-white">Sin asignaciones activas</h3>
-                        <p className="text-gray-400 mt-2 max-w-md mx-auto">Este recurso externo está registrado pero no participa en ningún proyecto actualmente.</p>
-                        <p className="text-gray-500 text-sm mt-4">Para asignarlo, edita un proyecto existente desde la sección "Proyectos" y añádelo al equipo.</p>
-                    </div>
-                </Card>
-            )}
           </main>
         </div>
       </div>

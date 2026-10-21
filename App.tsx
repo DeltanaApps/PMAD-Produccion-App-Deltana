@@ -23,7 +23,7 @@ import ClientFinancialsModal from './components/ClientFinancialsModal';
 import { supabase } from './lib/supabaseClient';
 import {
   fetchProjects,
-  fetchLoneCollaborators,
+  fetchTeamMembersCatalog,
   fetchInternalRates,
   fetchCurrentProfile,
   fetchProjectManagers,
@@ -128,6 +128,10 @@ const App: React.FC = () => {
   });
 
   const [projects, setProjects] = useState<Project[]>([]);
+  // Despite the name (kept for compatibility with the "Guardar/Abrir Datos"
+  // JSON backup format), this now holds the FULL shared Recursos catalog —
+  // every team_member any gestor can see, not just unassigned ones. See
+  // fetchTeamMembersCatalog.
   const [loneCollaborators, setLoneCollaborators] = useState<TeamMember[]>([]);
   const [internalRates, setInternalRates] = useState<Record<string, number>>({});
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
@@ -163,7 +167,7 @@ const App: React.FC = () => {
     setDataLoading(true);
     Promise.all([
       fetchProjects(),
-      fetchLoneCollaborators(),
+      fetchTeamMembersCatalog(),
       fetchInternalRates(),
       fetchCurrentProfile(session.user.id),
       fetchClients(),
@@ -546,6 +550,22 @@ const App: React.FC = () => {
     apiDeleteGlobalMember(contact).catch(handlePersistError);
   };
 
+  // Deletes a resource that looks unassigned from THIS gestor's point of
+  // view. Since Recursos is a shared catalog, "0 proyectos" here doesn't
+  // guarantee it's unassigned everywhere — it might be on another gestor's
+  // project, invisible to this one. Unlike handleDeleteGlobalMember above
+  // (optimistic, used only from Team.tsx on members already known to be on
+  // MY OWN projects), this awaits the server first: RLS blocks removing a
+  // roster row from a project this gestor doesn't manage, and the FK from
+  // project_members to team_members then blocks the team_members delete
+  // itself (a 23503 foreign_key_violation) — so another gestor's active
+  // resource can't actually be destroyed, this just needs to surface that
+  // clearly instead of silently "succeeding" in the UI.
+  const handleDeleteCatalogMember = async (contact: string): Promise<void> => {
+    await apiDeleteGlobalMember(contact);
+    setLoneCollaborators(prev => prev.filter(c => c.contact !== contact));
+  };
+
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
@@ -567,11 +587,14 @@ const App: React.FC = () => {
         return <Team
                   projects={projects}
                   internalRates={internalRates}
+                  teamMembersCatalog={loneCollaborators}
                   onUpdateRate={isTeamReadOnly ? undefined : handleUpdateGlobalRate}
                   onUpdateMemberType={isTeamReadOnly ? undefined : handleUpdateInternalMemberType}
                   onUpdateMemberName={isTeamReadOnly ? undefined : handleUpdateMemberName}
                   onUpdateMemberContact={isTeamReadOnly ? undefined : handleUpdateMemberContact}
                   onDeleteMember={isTeamReadOnly ? undefined : handleDeleteGlobalMember}
+                  onDeleteCatalogMember={isTeamReadOnly ? undefined : handleDeleteCatalogMember}
+                  onAddCollaborator={isTeamReadOnly ? undefined : handleOpenAddCollaboratorModal}
                />;
       }
       case 'internal-team': // NEW VIEW
@@ -595,10 +618,8 @@ const App: React.FC = () => {
       case 'collaborators':
         return <Collaborators
                   projects={projects}
-                  loneCollaborators={loneCollaborators}
                   onSaveFinancials={handleSaveCollaboratorFinancials}
                   onRemoveFromProject={handleRemoveCollaboratorFromProject}
-                  onAddCollaborator={handleOpenAddCollaboratorModal}
                   onUpdateCollaboratorName={handleUpdateCollaboratorName}
                   projectManagers={projectManagers}
                   readOnly={isPortfolioViewRole(currentUserRole)}

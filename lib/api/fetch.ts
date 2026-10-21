@@ -362,30 +362,27 @@ export async function fetchCurrentProfile(userId: string): Promise<{
   return data;
 }
 
-// "Lone" collaborators: team_members not attached to any project yet.
-export async function fetchLoneCollaborators(): Promise<TeamMember[]> {
+// The full shared "Recursos" catalog (internal + external), regardless of
+// who created each person or which gestor's project they're currently on —
+// team_members RLS already grants every gestor read access to all of it, so
+// any gestor can reuse a person another gestor already registered. Callers
+// that need "unassigned by ME" (e.g. Collaborators.tsx's own-projects view)
+// merge this with their own `projects` state; this function doesn't filter
+// by assignment at all.
+export async function fetchTeamMembersCatalog(): Promise<TeamMember[]> {
   const { data: allMembers, error: allError } = await supabase
     .from('team_members')
     .select('id, contact, name, company, member_type, internal_member_type, default_hourly_rate');
   if (allError) throw allError;
 
-  const { data: assigned, error: assignedError } = await supabase
-    .from('project_members')
-    .select('team_member_id');
-  if (assignedError) throw assignedError;
-
-  const assignedIds = new Set((assigned ?? []).map((r: { team_member_id: string }) => r.team_member_id));
-
-  return ((allMembers ?? []) as TeamMemberRow[])
-    .filter((m) => !assignedIds.has(m.id))
-    .map((m) => ({
-      name: m.name,
-      company: m.company ?? undefined,
-      role: '',
-      internalMemberType: m.internal_member_type ?? undefined,
-      contact: m.contact,
-      type: MEMBER_TYPE_FROM_DB[m.member_type],
-    }));
+  return ((allMembers ?? []) as TeamMemberRow[]).map((m) => ({
+    name: m.name,
+    company: m.company ?? undefined,
+    role: '',
+    internalMemberType: m.internal_member_type ?? undefined,
+    contact: m.contact,
+    type: MEMBER_TYPE_FROM_DB[m.member_type],
+  }));
 }
 
 // Shared client directory: every gestor sees every client ever created by
