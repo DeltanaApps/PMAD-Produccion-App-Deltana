@@ -1039,7 +1039,7 @@ const ProjectSection: React.FC<{
                 onUpdateProject(updatedProject, newGlobalMembers);
             }
 
-            alert(`¡Fichajes procesados e integrados correctamente en tu base de datos (.json)!\n\n` +
+            alert(`¡Fichajes procesados e integrados correctamente en la base de datos!\n\n` +
                   `• Proyecto: ${project.name}\n` +
                   `• Nuevos registros añadidos: ${addedCount}\n` +
                   `• Registros duplicados (ya existentes) omitidos: ${duplicateCount}\n` +
