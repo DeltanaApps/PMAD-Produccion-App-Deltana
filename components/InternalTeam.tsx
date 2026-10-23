@@ -16,6 +16,21 @@ interface InternalTeamProps {
 
 const formatEuro = (amount: number) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(amount);
 
+// Disciplinas fijas para "Nueva Tarea / Rol" de un rango de trabajo.
+const WORK_RANGE_TASK_OPTIONS = [
+  'TIERRAS',
+  'ESTRUCTURAS',
+  'ARQUITECTURA',
+  'MEP- FONTANERÍA',
+  'MEP - HVAC',
+  'MEP - DRENAJES',
+  'MEP- ELECTRICIDAD',
+  'MEP- TELECOMUNICACIÓN',
+  'UTILITIES DRY',
+  'UTILITIES WET',
+  'CIVIL & LANDSCAPE (Caminos, peatonales, zonas verdes)',
+];
+
 // --- HELPER FUNCTIONS ---
 
 export const normalizeNameExactUnicode = (name: string): string => {
@@ -514,7 +529,10 @@ const MemberRow: React.FC<{
                             <div className="grid grid-cols-1 md:grid-cols-[2fr,1fr,1fr,0.8fr,0.8fr,auto] gap-3 items-end mb-4 bg-gray-800/80 p-3 rounded border border-gray-700">
                                 <div>
                                     <label className="block text-[10px] uppercase text-gray-500 mb-1">Nueva Tarea / Rol</label>
-                                    <input type="text" value={newTaskName} onChange={e => setNewTaskName(e.target.value)} placeholder="Ej: Dirección de obra" className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white" />
+                                    <select value={newTaskName} onChange={e => setNewTaskName(e.target.value)} className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white">
+                                        <option value="">Seleccionar...</option>
+                                        {WORK_RANGE_TASK_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                    </select>
                                 </div>
                                 <div>
                                     <label className="block text-[10px] uppercase text-gray-500 mb-1">Inicio</label>
@@ -552,12 +570,16 @@ const MemberRow: React.FC<{
                                             return (
                                                 <div key={range.id} className="bg-gray-800/60 p-2.5 rounded border border-gray-700/60">
                                                     <div className="grid grid-cols-1 md:grid-cols-[2fr,1.5fr,1fr,1.2fr,auto] gap-2 items-center text-xs">
-                                                        <input 
-                                                            type="text" 
-                                                            value={range.taskName} 
+                                                        <select
+                                                            value={range.taskName}
                                                             onChange={(e) => handleUpdateRangeValue(range.id, 'taskName', e.target.value)}
-                                                            className="bg-transparent border-b border-transparent hover:border-gray-600 focus:border-sky-500 font-bold text-white text-xs focus:outline-none"
-                                                        />
+                                                            className="bg-transparent border-b border-transparent hover:border-gray-600 focus:border-sky-500 font-bold text-white text-xs focus:outline-none rounded"
+                                                        >
+                                                            {!WORK_RANGE_TASK_OPTIONS.includes(range.taskName) && range.taskName && (
+                                                                <option value={range.taskName}>{range.taskName} (anterior)</option>
+                                                            )}
+                                                            {WORK_RANGE_TASK_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                        </select>
                                                         
                                                         <div className="flex items-center gap-1 text-[11px] text-gray-400">
                                                             <input 
