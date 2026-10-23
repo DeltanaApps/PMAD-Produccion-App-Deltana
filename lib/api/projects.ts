@@ -166,6 +166,46 @@ async function syncPartialDeliveries(projectId: string, deliveries: Project['par
   }
 }
 
+// Persists the fichaje import shown in "Gestión de Recursos Internos" --
+// this was previously never written to the DB at all (only kept in React
+// state), so it looked like it saved but vanished on refresh. Replace-all
+// semantics: the caller already computed the correct merged/deduplicated
+// set in memory, so we just make the DB match it exactly, including
+// clearing both tables when tracking is undefined (the explicit "borrar
+// fichajes importados" action).
+async function syncActualTimeTracking(projectId: string, tracking: Project['actualTimeTracking']): Promise<void> {
+  const { error: deleteError } = await supabase.from('project_time_logs').delete().eq('project_id', projectId);
+  if (deleteError) throw deleteError;
+
+  if (tracking && tracking.logs.length > 0) {
+    const { error: insertError } = await supabase.from('project_time_logs').insert(
+      tracking.logs.map((log) => ({
+        project_id: projectId,
+        date: log.date,
+        employee_name: log.employeeName,
+        hours: log.hours,
+        project_name_ref: log.projectNameRef ?? null,
+      }))
+    );
+    if (insertError) throw insertError;
+  }
+
+  if (tracking) {
+    const { error: uploadError } = await supabase.from('project_time_log_uploads').upsert(
+      {
+        project_id: projectId,
+        file_name: tracking.fileName ?? null,
+        uploaded_at: new Date().toISOString(),
+      },
+      { onConflict: 'project_id' }
+    );
+    if (uploadError) throw uploadError;
+  } else {
+    const { error: deleteUploadError } = await supabase.from('project_time_log_uploads').delete().eq('project_id', projectId);
+    if (deleteUploadError) throw deleteUploadError;
+  }
+}
+
 async function upsertProjectCore(
   projectId: string,
   isNew: boolean,
@@ -226,6 +266,7 @@ export async function updateProjectWithMembers(updatedProject: Project): Promise
   await syncProjectContacts(updatedProject.id, updatedProject);
   await syncPartialDeliveries(updatedProject.id, updatedProject.partialDeliveries);
   await syncProjectRoster(updatedProject.id, updatedProject.team);
+  await syncActualTimeTracking(updatedProject.id, updatedProject.actualTimeTracking);
 }
 
 export async function saveClientFinancials(projectId: string, clientInfo: ClientInfo): Promise<void> {

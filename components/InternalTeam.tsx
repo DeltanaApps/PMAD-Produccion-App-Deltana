@@ -990,6 +990,19 @@ const ProjectSection: React.FC<{
             const existingLogs = project.actualTimeTracking?.logs || [];
             const { mergedLogs, addedCount, duplicateCount } = mergeAndDeduplicateLogs(existingLogs, rawLogs);
 
+            const confirmed = window.confirm(
+                `¿Confirmás guardar estos fichajes en la base de datos?\n\n` +
+                `• Proyecto: ${project.name}\n` +
+                `• Registros nuevos a guardar: ${addedCount}\n` +
+                `• Duplicados que se omitirán: ${duplicateCount}\n` +
+                (mismatchedCount > 0 ? `• Filas de otro proyecto ignoradas: ${mismatchedCount}\n` : '') +
+                `\nEsta acción no se puede deshacer.`
+            );
+            if (!confirmed) {
+                e.target.value = '';
+                return;
+            }
+
             const updatedProject: Project = {
                 ...project,
                 team: updatedTeam,
@@ -1393,9 +1406,16 @@ const InternalTeam: React.FC<InternalTeamProps> = ({ projects, globalRates, avai
             return;
         }
 
-        let totalNewAdded = 0;
-        let totalDuplicates = 0;
-        let matchedProjectsCount = 0;
+        // Pass 1: compute what WOULD change per project, without saving
+        // anything yet -- the user confirms the totals first.
+        type ProjectUpdatePlan = {
+            project: Project;
+            updatedTeam: TeamMember[];
+            mergedLogs: ActualTimeLog[];
+            addedCount: number;
+            duplicateCount: number;
+        };
+        const plans: ProjectUpdatePlan[] = [];
         const newGlobalMembersAll: TeamMember[] = [];
 
         projects.forEach(p => {
@@ -1408,65 +1428,82 @@ const InternalTeam: React.FC<InternalTeamProps> = ({ projects, globalRates, avai
                 return (expName && ref === expName) || (pName && ref === pName) || (pCode && ref === pCode);
             });
 
-            if (pLogs.length > 0) {
-                matchedProjectsCount++;
+            if (pLogs.length === 0) return;
 
-                const existingLogs = p.actualTimeTracking?.logs || [];
-                const { mergedLogs, addedCount, duplicateCount } = mergeAndDeduplicateLogs(existingLogs, pLogs);
-                totalNewAdded += addedCount;
-                totalDuplicates += duplicateCount;
+            const existingLogs = p.actualTimeTracking?.logs || [];
+            const { mergedLogs, addedCount, duplicateCount } = mergeAndDeduplicateLogs(existingLogs, pLogs);
 
-                const uniqueEmpNames = Array.from(new Set(pLogs.map(l => l.employeeName)));
-                const updatedTeam = [...p.team];
+            const uniqueEmpNames = Array.from(new Set(pLogs.map(l => l.employeeName)));
+            const updatedTeam = [...p.team];
 
-                uniqueEmpNames.forEach(empName => {
-                    const existingInProject = findMatchingMember(empName, updatedTeam);
-                    if (existingInProject) return;
+            uniqueEmpNames.forEach(empName => {
+                const existingInProject = findMatchingMember(empName, updatedTeam);
+                if (existingInProject) return;
 
-                    const existingInGlobal = findMatchingMember(empName, [...availableGlobalMembers, ...newGlobalMembersAll]);
-                    if (existingInGlobal) {
-                        updatedTeam.push({ ...existingInGlobal, type: MemberType.Internal });
-                        return;
-                    }
-
-                    const key = normalizeNameKey(empName);
-                    const normalizedContact = (key || 'recurso') + '@internal.com';
-                    const newMember: TeamMember = {
-                        name: empName,
-                        role: 'Recurso Interno',
-                        contact: normalizedContact,
-                        type: MemberType.Internal,
-                        internalCostInfo: { hourlyRate: 0, workRanges: [] }
-                    };
-                    updatedTeam.push(newMember);
-                    newGlobalMembersAll.push(newMember);
-                });
-
-                const updatedProject: Project = {
-                    ...p,
-                    team: updatedTeam,
-                    actualTimeTracking: {
-                        fileName: file.name,
-                        uploadedAt: new Date().toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-                        logs: mergedLogs
-                    }
-                };
-
-                if (onUpdateProject) {
-                    onUpdateProject(updatedProject, newGlobalMembersAll);
+                const existingInGlobal = findMatchingMember(empName, [...availableGlobalMembers, ...newGlobalMembersAll]);
+                if (existingInGlobal) {
+                    updatedTeam.push({ ...existingInGlobal, type: MemberType.Internal });
+                    return;
                 }
+
+                const key = normalizeNameKey(empName);
+                const normalizedContact = (key || 'recurso') + '@internal.com';
+                const newMember: TeamMember = {
+                    name: empName,
+                    role: 'Recurso Interno',
+                    contact: normalizedContact,
+                    type: MemberType.Internal,
+                    internalCostInfo: { hourlyRate: 0, workRanges: [] }
+                };
+                updatedTeam.push(newMember);
+                newGlobalMembersAll.push(newMember);
+            });
+
+            plans.push({ project: p, updatedTeam, mergedLogs, addedCount, duplicateCount });
+        });
+
+        if (plans.length === 0) {
+            alert("No se encontraron coincidencias de proyecto en la Columna A del Excel. Comprueba que el 'Nombre de proyecto para exportar' o Nombre del proyecto coincida con la Columna A.");
+            e.target.value = '';
+            return;
+        }
+
+        const totalNewAdded = plans.reduce((acc, p) => acc + p.addedCount, 0);
+        const totalDuplicates = plans.reduce((acc, p) => acc + p.duplicateCount, 0);
+
+        const confirmed = window.confirm(
+            `¿Confirmás guardar estos fichajes en la base de datos?\n\n` +
+            `• Proyectos vinculados: ${plans.length}\n` +
+            `• Registros nuevos a guardar: ${totalNewAdded}\n` +
+            `• Duplicados que se omitirán: ${totalDuplicates}\n` +
+            `\nEsta acción no se puede deshacer.`
+        );
+        if (!confirmed) {
+            e.target.value = '';
+            return;
+        }
+
+        // Pass 2: now actually persist each matched project.
+        plans.forEach(({ project: p, updatedTeam, mergedLogs }) => {
+            const updatedProject: Project = {
+                ...p,
+                team: updatedTeam,
+                actualTimeTracking: {
+                    fileName: file.name,
+                    uploadedAt: new Date().toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                    logs: mergedLogs
+                }
+            };
+            if (onUpdateProject) {
+                onUpdateProject(updatedProject, newGlobalMembersAll);
             }
         });
 
-        if (matchedProjectsCount === 0) {
-            alert("No se encontraron coincidencias de proyecto en la Columna A del Excel. Comprueba que el 'Nombre de proyecto para exportar' o Nombre del proyecto coincida con la Columna A.");
-        } else {
-            alert(`¡Importación Multiproyecto realizada con éxito!\n\n` +
-                  `• Proyectos vinculados: ${matchedProjectsCount}\n` +
-                  `• Nuevos registros añadidos: ${totalNewAdded}\n` +
-                  `• Registros duplicados (omitidos): ${totalDuplicates}\n` +
-                  `• Nuevos recursos creados: ${newGlobalMembersAll.length}`);
-        }
+        alert(`¡Importación Multiproyecto realizada con éxito!\n\n` +
+              `• Proyectos vinculados: ${plans.length}\n` +
+              `• Nuevos registros añadidos: ${totalNewAdded}\n` +
+              `• Registros duplicados (omitidos): ${totalDuplicates}\n` +
+              `• Nuevos recursos creados: ${newGlobalMembersAll.length}`);
     } catch (err) {
         console.error("Error importando fichaje multiproyecto", err);
         alert("Error al leer el archivo Excel/CSV.");
