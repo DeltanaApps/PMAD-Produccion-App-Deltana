@@ -124,7 +124,7 @@ const Team: React.FC<TeamProps> = ({
 
   const canDeleteRow = (member: ResourceRow) => (member.projects.length > 0 ? !!onDeleteMember : !!onDeleteCatalogMember);
 
-  const renderTeamTable = (members: ResourceRow[]) => {
+  const renderTeamTable = (members: ResourceRow[], showRole: boolean) => {
     if (members.length === 0) {
       return <p className="text-gray-500 px-6 py-4">No hay miembros en esta categoría.</p>;
     }
@@ -140,9 +140,11 @@ const Team: React.FC<TeamProps> = ({
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Tipo
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                    Rol
-                </th>
+                {showRole && (
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        Rol
+                    </th>
+                )}
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Contacto
                 </th>
@@ -176,7 +178,7 @@ const Team: React.FC<TeamProps> = ({
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                                 {member.type === MemberType.Internal ? (member.internalMemberType || 'Recurso Interno') : 'Recurso Externo'}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{member.role}</td>
+                            {showRole && <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{member.role}</td>}
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-sky-400">
                                 <a href={`mailto:${member.contact}`} className="hover:underline">{member.contact}</a>
                             </td>
@@ -241,6 +243,7 @@ const Team: React.FC<TeamProps> = ({
         </div>
         <ResourceGrid
           members={members}
+          showRole={activeCategory === 'external'}
           onSelectMember={setSelectedMember}
           onDeleteRow={handleDeleteRow}
           canDeleteRow={canDeleteRow}
@@ -272,7 +275,7 @@ const Team: React.FC<TeamProps> = ({
             <span className="w-3 h-3 bg-sky-400 rounded-full"></span>
             <button onClick={() => setActiveCategory('internal')} className="hover:underline">Recursos Internos</button>
           </h2>
-          {renderTeamTable(internalMembers)}
+          {renderTeamTable(internalMembers, false)}
         </div>
 
         <div>
@@ -281,7 +284,7 @@ const Team: React.FC<TeamProps> = ({
             <button onClick={() => setActiveCategory('external')} className="hover:underline">Recursos Externos</button>
             <span className="ml-auto">{addButton}</span>
           </h2>
-          {renderTeamTable(externalMembers)}
+          {renderTeamTable(externalMembers, true)}
         </div>
       </div>
 
@@ -339,10 +342,11 @@ const TeamMemberModalWrapper: React.FC<{
 // who's available and how active they are, not just a quick glance.
 const ResourceGrid: React.FC<{
   members: ResourceRow[];
+  showRole: boolean;
   onSelectMember: (m: ResourceRow) => void;
   onDeleteRow: (m: ResourceRow) => void;
   canDeleteRow: (m: ResourceRow) => boolean;
-}> = ({ members, onSelectMember, onDeleteRow, canDeleteRow }) => {
+}> = ({ members, showRole, onSelectMember, onDeleteRow, canDeleteRow }) => {
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all');
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -421,7 +425,7 @@ const ResourceGrid: React.FC<{
                 <tr>
                 {headerButton('name', 'Nombre')}
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Tipo</th>
-                {headerButton('role', 'Rol')}
+                {showRole && headerButton('role', 'Rol')}
                 {headerButton('contact', 'Contacto')}
                 {headerButton('active', 'Activos')}
                 {headerButton('inactive', 'Históricos')}
@@ -447,7 +451,7 @@ const ResourceGrid: React.FC<{
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                             {member.type === MemberType.Internal ? (member.internalMemberType || 'Recurso Interno') : 'Recurso Externo'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{member.role}</td>
+                        {showRole && <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{member.role}</td>}
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-sky-400">
                             <a href={`mailto:${member.contact}`} className="hover:underline">{member.contact}</a>
                         </td>
