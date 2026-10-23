@@ -928,9 +928,30 @@ const ProjectSection: React.FC<{
         if (!file) return;
 
         try {
-            const rawLogs = await parseTimeTrackingFile(file);
-            if (rawLogs.length === 0) {
+            const allRawLogs = await parseTimeTrackingFile(file);
+            if (allRawLogs.length === 0) {
                 alert("No se encontraron registros válidos en el archivo. Verifica las columnas: Col A: Proyecto, Col B: Fecha, Col C: Empleado, Col D: Horas.");
+                return;
+            }
+
+            // Only accept rows whose Columna A (Export Ref / nombre / código)
+            // matches ESTE proyecto -- de lo contrario estaríamos cargando
+            // fichajes de otro proyecto por error (mismo chequeo que ya hace
+            // "Cargar Fichaje Multiproyecto").
+            const expName = (project.exportName || '').toLowerCase().trim();
+            const pName = project.name.toLowerCase().trim();
+            const pCode = project.code.toLowerCase().trim();
+            const rawLogs = allRawLogs.filter(l => {
+                const ref = (l.projectNameRef || '').toLowerCase().trim();
+                return (expName && ref === expName) || (pName && ref === pName) || (pCode && ref === pCode);
+            });
+            const mismatchedCount = allRawLogs.length - rawLogs.length;
+
+            if (rawLogs.length === 0) {
+                alert(
+                    `El archivo no coincide con este proyecto.\n\n` +
+                    `Ninguna fila de la Columna A coincide con el código ("${project.code}"), el nombre o el nombre de exportación de "${project.name}". No se cargó ningún fichaje.`
+                );
                 return;
             }
 
@@ -987,6 +1008,7 @@ const ProjectSection: React.FC<{
                   `• Proyecto: ${project.name}\n` +
                   `• Nuevos registros añadidos: ${addedCount}\n` +
                   `• Registros duplicados (ya existentes) omitidos: ${duplicateCount}\n` +
+                  (mismatchedCount > 0 ? `• Filas de otro proyecto ignoradas (no coinciden): ${mismatchedCount}\n` : '') +
                   `• Total fichajes guardados en el proyecto: ${mergedLogs.length}\n` +
                   `• Nuevos recursos creados: ${newGlobalMembers.length}`);
         } catch (err) {
