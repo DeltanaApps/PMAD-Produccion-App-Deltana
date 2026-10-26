@@ -125,11 +125,6 @@ const App: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Track last local backup export/import (informational only, not synced)
-  const [lastDataUpdate, setLastDataUpdate] = useState<string | null>(() => {
-      return localStorage.getItem('vicent_pm_last_update');
-  });
-
   const [projects, setProjects] = useState<Project[]>([]);
   // Despite the name (kept for compatibility with the "Guardar/Abrir Datos"
   // JSON backup format), this now holds the FULL shared Recursos catalog —
@@ -275,33 +270,6 @@ const App: React.FC = () => {
   const handleLogout = () => {
       supabase.auth.signOut();
   };
-
-  // --- DATA BACKUP HANDLERS (local JSON snapshot; not synced to Supabase) ---
-  const handleExportData = () => {
-    const now = new Date();
-    const data = {
-        projects,
-        loneCollaborators,
-        internalRates,
-        exportDate: now.toISOString()
-    };
-
-    const dateStr = now.toLocaleString();
-    setLastDataUpdate(dateStr);
-    localStorage.setItem('vicent_pm_last_update', dateStr);
-
-    const jsonString = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonString], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `deltana_pm_backup_${now.toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // -----------------------------
 
 
   const handleOpenAddProjectModal = () => {
@@ -673,8 +641,6 @@ const App: React.FC = () => {
       <Sidebar
         currentView={currentView}
         setCurrentView={setCurrentView}
-        onExportData={handleExportData}
-        lastDataUpdate={lastDataUpdate}
         canViewExecutiveDashboard={isPortfolioViewRole(currentUserRole)}
         isAdministracion={isAdministradorRole(currentUserRole)}
         pendingApprovalCount={pendingApprovalCount}
