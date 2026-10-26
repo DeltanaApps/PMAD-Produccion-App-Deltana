@@ -2,7 +2,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Project, ProjectStatus, InvoiceSource } from '../types';
 import Card from './ui/Card';
-import { LinkIcon, PlusIcon } from './ui/Icons';
+import { LinkIcon, PlusIcon, TrashIcon } from './ui/Icons';
+
+interface OrphanClient {
+  id: string;
+  name: string;
+}
 
 interface ClientsProps {
   projects: Project[];
@@ -10,6 +15,8 @@ interface ClientsProps {
   onEditFinancials: (project: Project) => void;
   projectManagers?: Record<string, { id: string; name: string }>;
   readOnly?: boolean;
+  orphanClients?: OrphanClient[];
+  onDeleteOrphanClient?: (clientId: string) => Promise<void>;
 }
 
 const formatEuro = (amount: number) => (
@@ -331,9 +338,23 @@ const ProjectFinancialsCard: React.FC<{project: Project; onEdit: () => void; rea
     )
 }
 
-const Clients: React.FC<ClientsProps> = ({ projects, onAddClient, onEditFinancials, projectManagers, readOnly }) => {
+const Clients: React.FC<ClientsProps> = ({ projects, onAddClient, onEditFinancials, projectManagers, readOnly, orphanClients, onDeleteOrphanClient }) => {
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [managerFilter, setManagerFilter] = useState<string>('all');
+
+  const handleDeleteOrphan = async (client: OrphanClient) => {
+    if (!onDeleteOrphanClient) return;
+    if (!window.confirm(`¿Eliminar definitivamente el cliente "${client.name}"? No tiene ningún proyecto asociado.`)) return;
+    try {
+      await onDeleteOrphanClient(client.id);
+    } catch (err: any) {
+      alert(
+        err?.code === '23503'
+          ? 'Este cliente ya tiene un proyecto asociado, así que no se puede eliminar.'
+          : 'No se pudo eliminar el cliente.'
+      );
+    }
+  };
 
   const managerOptions = useMemo(() => {
     if (!projectManagers) return [];
@@ -419,6 +440,27 @@ const Clients: React.FC<ClientsProps> = ({ projects, onAddClient, onEditFinancia
             </ul>
              {clients.length === 0 && <p className="text-gray-500 text-sm text-center py-4">No hay clientes activos.</p>}
           </Card>
+
+          {!readOnly && orphanClients && orphanClients.length > 0 && (
+            <Card className="p-4 mt-6">
+              <h2 className="text-lg font-semibold mb-1 text-white border-b border-gray-700 pb-2">Clientes sin proyecto</h2>
+              <p className="text-xs text-gray-500 mt-2 mb-3">Clientes que cargaste y que ya no tienen ningún proyecto asociado.</p>
+              <ul className="space-y-1">
+                {orphanClients.map(client => (
+                  <li key={client.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800">
+                    <span className="truncate">{client.name}</span>
+                    <button
+                      onClick={() => handleDeleteOrphan(client)}
+                      className="p-1 text-red-400 hover:text-red-300 shrink-0"
+                      title="Eliminar cliente"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
         </aside>
         
         <main className="md:col-span-3 pb-10">

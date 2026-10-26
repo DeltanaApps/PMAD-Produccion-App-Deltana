@@ -40,7 +40,7 @@ async function findOrCreateTeamMemberId(member: TeamMember): Promise<string> {
 // first time any gestor types that name. Matching is case-insensitive so
 // "Acme Corp" and "acme corp" reuse the same client instead of creating a
 // near-duplicate.
-async function findOrCreateClientId(name: string): Promise<string> {
+async function findOrCreateClientId(name: string, createdBy: string): Promise<string> {
   const trimmed = name.trim();
   const { data: existing, error: findError } = await supabase
     .from('clients')
@@ -52,11 +52,16 @@ async function findOrCreateClientId(name: string): Promise<string> {
 
   const { data: created, error: createError } = await supabase
     .from('clients')
-    .insert({ name: trimmed })
+    .insert({ name: trimmed, created_by: createdBy })
     .select('id')
     .single();
   if (createError) throw createError;
   return created.id;
+}
+
+export async function deleteClient(clientId: string): Promise<void> {
+  const { error } = await supabase.from('clients').delete().eq('id', clientId);
+  if (error) throw error;
 }
 
 async function findProjectMemberId(projectId: string, contact: string): Promise<string> {
@@ -212,7 +217,7 @@ async function upsertProjectCore(
   projectData: Omit<Project, 'id'>,
   managerId: string
 ): Promise<void> {
-  const clientId = await findOrCreateClientId(projectData.client);
+  const clientId = await findOrCreateClientId(projectData.client, managerId);
   const row = {
     code: projectData.code,
     name: projectData.name,

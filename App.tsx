@@ -28,6 +28,8 @@ import {
   fetchCurrentProfile,
   fetchProjectManagers,
   fetchClients,
+  fetchMyOrphanClients,
+  type OrphanClient,
 } from './lib/api/fetch';
 import { updateMyThemePreference } from './lib/api/preferences';
 import { fetchInactiveProfilesCount } from './lib/api/admin';
@@ -39,6 +41,7 @@ import {
   removeCollaboratorFromProject as apiRemoveCollaboratorFromProject,
   saveInternalFinancials as apiSaveInternalFinancials,
   updateProjectWithMembers as apiUpdateProjectWithMembers,
+  deleteClient as apiDeleteClient,
 } from './lib/api/projects';
 import {
   saveNewCollaborator as apiSaveNewCollaborator,
@@ -138,6 +141,7 @@ const App: React.FC = () => {
   const [currentUserLabel, setCurrentUserLabel] = useState<string | null>(null);
   const [projectManagers, setProjectManagers] = useState<Record<string, { id: string; name: string }>>({});
   const [allClients, setAllClients] = useState<string[]>([]);
+  const [orphanClients, setOrphanClients] = useState<OrphanClient[]>([]);
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
 
   // Track auth session
@@ -162,6 +166,7 @@ const App: React.FC = () => {
       setCurrentUserLabel(null);
       setProjectManagers({});
       setAllClients([]);
+      setOrphanClients([]);
       return;
     }
     setDataLoading(true);
@@ -171,8 +176,9 @@ const App: React.FC = () => {
       fetchInternalRates(),
       fetchCurrentProfile(session.user.id),
       fetchClients(),
+      fetchMyOrphanClients(),
     ])
-      .then(([loadedProjects, loadedLoneCollaborators, loadedRates, profile, loadedClients]) => {
+      .then(([loadedProjects, loadedLoneCollaborators, loadedRates, profile, loadedClients, loadedOrphanClients]) => {
         if (profile && profile.active === false) {
           alert('Tu cuenta todavía no tiene acceso habilitado en la app. Contactá a Administración para que te asigne un rol.');
           supabase.auth.signOut();
@@ -182,6 +188,7 @@ const App: React.FC = () => {
         setLoneCollaborators(loadedLoneCollaborators);
         setInternalRates(loadedRates);
         setAllClients(loadedClients);
+        setOrphanClients(loadedOrphanClients);
         setCurrentUserRole(profile?.role ?? null);
         setCurrentUserLabel(profile?.name || profile?.email || session.user.email || null);
         if (profile?.theme_preference === 'light' || profile?.theme_preference === 'dark') {
@@ -354,11 +361,19 @@ const App: React.FC = () => {
     setViewingProject(project);
   };
 
+  // A project save/delete can change which clients are orphaned (e.g.
+  // switching a project to a different client name leaves the old one with
+  // zero projects) -- refetch so "Clientes sin proyecto" doesn't go stale
+  // until the next full reload.
+  const refreshOrphanClients = () => {
+    fetchMyOrphanClients().then(setOrphanClients).catch(handlePersistError);
+  };
+
   const handleSaveProject = (projectData: Omit<Project, 'id'>) => {
     if (editingProject) {
       setProjects(projects.map(p => p.id === editingProject.id ? { ...p, ...projectData } : p));
       if (session) {
-        apiSaveProject(editingProject.id, false, projectData, session.user.id).catch(handlePersistError);
+        apiSaveProject(editingProject.id, false, projectData, session.user.id).then(refreshOrphanClients).catch(handlePersistError);
       }
     } else {
       const newId = crypto.randomUUID();
@@ -368,7 +383,7 @@ const App: React.FC = () => {
       };
       setProjects([...projects, newProject]);
       if (session) {
-        apiSaveProject(newId, true, projectData, session.user.id).catch(handlePersistError);
+        apiSaveProject(newId, true, projectData, session.user.id).then(refreshOrphanClients).catch(handlePersistError);
       }
     }
     handleCloseProjectModal();
@@ -377,7 +392,7 @@ const App: React.FC = () => {
   const handleDeleteProject = (projectId: string) => {
     if (window.confirm("¿Estás seguro de que deseas eliminar esta propuesta? Esta acción no se puede deshacer.")) {
       setProjects(projects.filter(p => p.id !== projectId));
-      apiDeleteProject(projectId).catch(handlePersistError);
+      apiDeleteProject(projectId).then(refreshOrphanClients).catch(handlePersistError);
       handleCloseProjectModal();
     }
   };
@@ -572,6 +587,15 @@ const App: React.FC = () => {
     setLoneCollaborators(prev => prev.filter(c => c.contact !== contact));
   };
 
+  // Deletes a client I created that currently has zero projects attached.
+  // Awaits the server: the FK from projects.client_id blocks the delete
+  // (23503) if a project somehow still points to it, so a blocked delete
+  // surfaces as an error instead of the UI pretending it worked.
+  const handleDeleteOrphanClient = async (clientId: string): Promise<void> => {
+    await apiDeleteClient(clientId);
+    setOrphanClients(prev => prev.filter(c => c.id !== clientId));
+  };
+
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
@@ -620,6 +644,8 @@ const App: React.FC = () => {
                   onEditFinancials={(project) => setEditingClientProject(project)}
                   projectManagers={projectManagers}
                   readOnly={isPortfolioViewRole(currentUserRole)}
+                  orphanClients={orphanClients}
+                  onDeleteOrphanClient={handleDeleteOrphanClient}
                 />;
       case 'collaborators':
         return <Collaborators

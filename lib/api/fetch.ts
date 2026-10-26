@@ -394,6 +394,22 @@ export async function fetchClients(): Promise<string[]> {
   return (data as { name: string }[]).map((row) => row.name);
 }
 
+export interface OrphanClient {
+  id: string;
+  name: string;
+}
+
+// Clients the current gestor created that no longer have any project
+// attached (e.g. a project got edited to a different client, or deleted).
+// Runs through a security-definer RPC since checking "zero projects" needs
+// to see across every gestor's projects, not just the ones visible to me
+// under projects_select RLS -- see my_orphan_clients() in the migration.
+export async function fetchMyOrphanClients(): Promise<OrphanClient[]> {
+  const { data, error } = await supabase.rpc('my_orphan_clients');
+  if (error) throw error;
+  return (data ?? []) as OrphanClient[];
+}
+
 export async function fetchInternalRates(): Promise<Record<string, number>> {
   const { data, error } = await supabase
     .from('team_members')
