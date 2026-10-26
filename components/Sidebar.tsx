@@ -1,13 +1,12 @@
 
-import React, { useRef } from 'react';
-import { DashboardIcon, ProjectsIcon, TeamIcon, ClientsIcon, CollaboratorsIcon, CalendarIcon, DownloadIcon, UploadIcon, BriefcaseIcon, TrendingUpIcon, SettingsIcon } from './ui/Icons';
+import React from 'react';
+import { DashboardIcon, ProjectsIcon, TeamIcon, ClientsIcon, CollaboratorsIcon, CalendarIcon, DownloadIcon, BriefcaseIcon, TrendingUpIcon, SettingsIcon } from './ui/Icons';
 import type { View } from '../types';
 
 interface SidebarProps {
   currentView: View;
   setCurrentView: (view: View) => void;
   onExportData: () => void;
-  onImportData: (file: File) => void;
   lastDataUpdate: string | null;
   canViewExecutiveDashboard?: boolean;
   isAdministracion?: boolean;
@@ -52,18 +51,8 @@ const NavItem: React.FC<{
   );
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onExportData, onImportData, lastDataUpdate, canViewExecutiveDashboard, isAdministracion, pendingApprovalCount }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onExportData, lastDataUpdate, canViewExecutiveDashboard, isAdministracion, pendingApprovalCount }) => {
   const iconClass = "h-6 w-6";
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      onImportData(file);
-    }
-    // Reset value to allow uploading the same file again if needed
-    if (event.target) event.target.value = '';
-  };
 
   return (
     <aside className="fixed top-0 left-0 h-full w-16 md:w-64 bg-gray-800 text-white flex flex-col z-10 shadow-lg">
@@ -100,6 +89,18 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onExport
           isActive={currentView === 'projects'}
           onClick={() => setCurrentView('projects')}
         />
+        <NavItem
+          icon={<TeamIcon className={iconClass} />}
+          label="Recursos"
+          isActive={currentView === 'team'}
+          onClick={() => setCurrentView('team')}
+        />
+        <NavItem
+          icon={<ClientsIcon className={iconClass} />}
+          label={canViewExecutiveDashboard ? 'Clientes' : 'Mis Clientes'}
+          isActive={currentView === 'clients'}
+          onClick={() => setCurrentView('clients')}
+        />
         {!canViewExecutiveDashboard && (
           <NavItem
             icon={<CalendarIcon className={iconClass} />}
@@ -116,18 +117,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onExport
             onClick={() => setCurrentView('internal-team')}
           />
         )}
-        <NavItem
-          icon={<TeamIcon className={iconClass} />}
-          label="Recursos"
-          isActive={currentView === 'team'}
-          onClick={() => setCurrentView('team')}
-        />
-        <NavItem
-          icon={<ClientsIcon className={iconClass} />}
-          label={canViewExecutiveDashboard ? 'Clientes' : 'Mis Clientes'}
-          isActive={currentView === 'clients'}
-          onClick={() => setCurrentView('clients')}
-        />
         <NavItem
           icon={<CollaboratorsIcon className={iconClass} />}
           label="Gestión de Recursos Externos"
@@ -158,22 +147,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onExport
 
             <div className="flex flex-col gap-3">
               <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center justify-center w-full px-3 py-2 text-xs font-bold text-white bg-green-600 hover:bg-green-500 rounded transition-all shadow-lg hover:scale-105 active:scale-95"
-                  title="Buscar archivo en OneDrive/PC"
-              >
-                  <UploadIcon className="h-4 w-4 mr-2" />
-                  ABRIR DATOS
-              </button>
-              <input
-                  type="file"
-                  ref={fileInputRef}
-                  className="hidden"
-                  accept=".json"
-                  onChange={handleFileChange}
-              />
-
-              <button
                   onClick={onExportData}
                   className="flex items-center justify-center w-full px-3 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded transition-all shadow-lg hover:scale-105 active:scale-95"
                   title="Descargar archivo para guardar en OneDrive"
@@ -185,14 +158,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onExport
 
             {lastDataUpdate && (
                <div className="mt-3 text-center">
-                  <p className="text-[9px] text-gray-500 uppercase tracking-widest">Datos del:</p>
+                  <p className="text-[9px] text-gray-500 uppercase tracking-widest">Última copia:</p>
                   <p className="text-[10px] text-sky-300 font-mono">{lastDataUpdate}</p>
                </div>
             )}
 
             {!lastDataUpdate && (
               <p className="text-[10px] text-gray-500 mt-3 text-center leading-tight">
-                  No has cargado copia de seguridad.
+                  Todavía no generaste una copia de seguridad.
               </p>
             )}
         </div>

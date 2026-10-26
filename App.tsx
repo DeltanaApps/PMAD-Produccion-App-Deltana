@@ -301,44 +301,6 @@ const App: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const handleImportData = (file: File) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-          try {
-              const text = e.target?.result as string;
-              const data = JSON.parse(text);
-
-              // NOTE: this only replaces the in-memory view for inspection —
-              // it does not write to Supabase. A refresh brings back the
-              // server's real data. Bulk-importing a backup into the
-              // relational schema is a separate, deliberately deferred task.
-              if (Array.isArray(data.projects)) {
-                  setProjects(data.projects);
-              }
-              if (Array.isArray(data.loneCollaborators)) {
-                  setLoneCollaborators(data.loneCollaborators);
-              }
-              if (data.internalRates) {
-                  setInternalRates(data.internalRates);
-              }
-
-              let dateStr = "";
-              if (data.exportDate) {
-                  dateStr = new Date(data.exportDate).toLocaleString();
-              } else {
-                  dateStr = new Date().toLocaleString() + " (Importado)";
-              }
-              setLastDataUpdate(dateStr);
-              localStorage.setItem('vicent_pm_last_update', dateStr);
-
-              alert("Backup cargado solo para vista previa en esta sesión — todavía no se sincroniza con el servidor. Recargar la página vuelve a traer los datos reales.");
-          } catch (err) {
-              console.error("Error parsing backup file", err);
-              alert("Error al leer el archivo. Asegúrate de que es un backup válido de Deltana PM (.json).");
-          }
-      };
-      reader.readAsText(file);
-  };
   // -----------------------------
 
 
@@ -712,7 +674,6 @@ const App: React.FC = () => {
         currentView={currentView}
         setCurrentView={setCurrentView}
         onExportData={handleExportData}
-        onImportData={handleImportData}
         lastDataUpdate={lastDataUpdate}
         canViewExecutiveDashboard={isPortfolioViewRole(currentUserRole)}
         isAdministracion={isAdministradorRole(currentUserRole)}
