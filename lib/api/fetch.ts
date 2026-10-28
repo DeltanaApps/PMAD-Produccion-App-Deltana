@@ -71,6 +71,9 @@ interface CollaboratorInvoiceRow {
   source: string;
   invoiced?: boolean;
   pdf_url?: string | null;
+  // Only present on collaborator_payments rows (invoiced "Nº Factura" the
+  // user types) -- collaborator_planned_invoices rows never select it.
+  invoice_number?: string | null;
 }
 
 interface TeamMemberRow {
@@ -108,6 +111,7 @@ interface ProjectInvoiceRow {
   source: string;
   invoiced?: boolean;
   pdf_url?: string | null;
+  invoice_number?: string | null;
 }
 
 interface ProjectRow {
@@ -139,7 +143,7 @@ const PROJECT_SELECT = `
   client_agreement:project_client_agreement(amount, offer_url, contract_url),
   client_additionals:project_client_additionals(id, description, amount, url),
   planned_invoices:project_planned_invoices(id, description, date, amount, percentage, source, invoiced),
-  invoices:project_invoices(id, amount, date, pdf_url, percentage, source),
+  invoices:project_invoices(id, amount, date, pdf_url, percentage, source, invoice_number),
   time_logs:project_time_logs(id, date, employee_name, hours, project_name_ref),
   time_log_upload:project_time_log_uploads(file_name, uploaded_at),
   members:project_members(
@@ -154,7 +158,7 @@ const PROJECT_SELECT = `
     collaborator_additionals(id, description, amount, url),
     collaborator_partial_deliveries(id, description, date, completed),
     collaborator_planned_invoices(id, description, date, amount, percentage, source, invoiced),
-    collaborator_payments(id, amount, date, pdf_url, percentage, source)
+    collaborator_payments(id, amount, date, pdf_url, percentage, source, invoice_number)
   )
 `;
 
@@ -212,7 +216,9 @@ const mapClientInfo = (row: ProjectRow): ClientInfo | undefined => {
       source: INVOICE_SOURCE_FROM_DB(pi.source),
     })),
     invoices: row.invoices.map((inv) => ({
-      id: inv.id,
+      // Falls back to the row's own uuid only for invoices saved before
+      // invoice_number existed -- new ones always have the typed value.
+      id: inv.invoice_number ?? inv.id,
       amount: inv.amount,
       date: inv.date,
       pdfUrl: inv.pdf_url ?? '',
@@ -278,7 +284,7 @@ const mapMember = (row: ProjectMemberRow): TeamMember => {
         source: INVOICE_SOURCE_FROM_DB(pi.source),
       })),
       invoices: row.collaborator_payments.map((p) => ({
-        id: p.id,
+        id: p.invoice_number ?? p.id,
         amount: p.amount,
         date: p.date,
         pdfUrl: p.pdf_url ?? '',

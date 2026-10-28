@@ -325,6 +325,7 @@ export async function saveClientFinancials(projectId: string, clientInfo: Client
         pdf_url: inv.pdfUrl || null,
         percentage: inv.percentage ?? null,
         source: INVOICE_SOURCE_TO_DB(inv.source),
+        invoice_number: inv.id || null,
       }))
     );
     if (error) throw error;
@@ -420,6 +421,7 @@ export async function saveCollaboratorFinancials(
         pdf_url: inv.pdfUrl || null,
         percentage: inv.percentage ?? null,
         source: INVOICE_SOURCE_TO_DB(inv.source),
+        invoice_number: inv.id || null,
       }))
     );
     if (error) throw error;
