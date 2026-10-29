@@ -202,7 +202,17 @@ const App: React.FC = () => {
         alert('No se pudieron cargar los datos desde el servidor. Recargá la página para reintentar.');
       })
       .finally(() => setDataLoading(false));
-  }, [session]);
+  // Deliberately keyed on the user id, not the whole `session` object:
+  // Supabase silently refreshes the access token (new session object, same
+  // user) whenever the tab regains focus after being minimized/backgrounded
+  // for a while. Depending on `session` itself re-ran this full reload on
+  // every one of those refreshes, replacing `projects` with brand-new object
+  // references mid-edit -- any open modal that re-syncs its local state from
+  // a prop via `useEffect(() => {...}, [someProjectOrMember])` (financials
+  // modals, etc.) saw that as "the record changed" and wiped out whatever
+  // the user was still typing. Keying on the id only reloads on an actual
+  // sign-in/sign-out/user switch.
+  }, [session?.user.id]);
 
   // Keep the pending-approval count fresh for Administrador without needing a manual reload.
   useEffect(() => {
