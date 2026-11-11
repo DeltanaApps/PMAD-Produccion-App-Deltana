@@ -64,6 +64,30 @@ export const formatDateToIso = (dateVal: any): string => {
 };
 
 /**
+ * Some exports arrive "double-CSV-encoded": every field was already
+ * comma/quote-escaped once, then the whole line got treated as a single
+ * text value and quoted/escaped again (typically from opening the real
+ * Odoo CSV in Excel with the wrong delimiter setting, then re-saving it).
+ * Papa.parse then reads each row as a single column containing the real,
+ * still-quoted row as text. Detect that shape and re-run it through the
+ * CSV parser to recover the real columns. If the project name itself has
+ * a literal comma (not quoted in the original export), re-splitting can
+ * produce more than 5 columns; the last 4 are always Fecha/Empleado/
+ * Cantidad/Descripción, so anything before them is rejoined as the name.
+ */
+const unflattenRow = (row: any[]): any[] => {
+  if (!row || row.length !== 1 || typeof row[0] !== 'string' || !row[0].includes(',')) return row;
+  const reparsed = Papa.parse(row[0], { skipEmptyLines: true });
+  const cols = (reparsed.data[0] as any[]) || [];
+  if (cols.length < 4) return row;
+  if (cols.length > 5) {
+    const name = cols.slice(0, cols.length - 4).join(',');
+    return [name, ...cols.slice(cols.length - 4)];
+  }
+  return cols;
+};
+
+/**
  * Parses an Excel (.xlsx, .xls) or CSV file containing time logs.
  * Columns expectation:
  * Col A (0): Project Name (referencial)
@@ -105,7 +129,7 @@ export const parseTimeTrackingFile = async (file: File): Promise<ActualTimeLog[]
   const now = Date.now();
 
   for (let i = 0; i < rawRows.length; i++) {
-    const row = rawRows[i];
+    const row = unflattenRow(rawRows[i]);
     if (!row || row.length < 3) continue;
 
     const colA = row[0] ? String(row[0]).trim() : '';

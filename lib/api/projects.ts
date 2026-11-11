@@ -21,15 +21,25 @@ async function findOrCreateTeamMemberId(member: TeamMember): Promise<string> {
   if (findError) throw findError;
   if (existing) return existing.id;
 
+  // Upsert (not insert): when a multi-project fichaje import saves several
+  // projects concurrently and a brand-new person appears in more than one
+  // of them, two of these calls can race past the select above at the same
+  // time. A plain insert would have one of them hit the `contact` unique
+  // constraint and throw, aborting that whole project's save. The upsert
+  // lets Postgres resolve the race atomically via the same unique index
+  // instead, so every project's save still gets back a valid id.
   const { data: created, error: createError } = await supabase
     .from('team_members')
-    .insert({
-      contact: trimmedContact,
-      name: member.name,
-      company: member.company ?? null,
-      member_type: MEMBER_TYPE_TO_DB[member.type],
-      internal_member_type: member.internalMemberType ?? null,
-    })
+    .upsert(
+      {
+        contact: trimmedContact,
+        name: member.name,
+        company: member.company ?? null,
+        member_type: MEMBER_TYPE_TO_DB[member.type],
+        internal_member_type: member.internalMemberType ?? null,
+      },
+      { onConflict: 'contact' }
+    )
     .select('id')
     .single();
   if (createError) throw createError;
@@ -263,13 +273,17 @@ export async function deleteProject(projectId: string): Promise<void> {
   if (error) throw error;
 }
 
-// Mirrors handleUpdateProjectWithMembers: same full sync as saveProject.
+// Mirrors handleUpdateProjectWithMembers, which InternalTeam uses exclusively:
+// every call site there only ever changes `team` and/or `actualTimeTracking`,
+// so this only syncs the roster and the fichaje logs — never the project's
+// core fields, contacts or partial deliveries (those stay on saveProject's
+// full sync). Keeping this narrow is also what lets the 'administrador' role
+// write here: the RLS grant for her only needs to cover these two syncs'
+// tables (team_members, project_members, project_time_logs,
+// project_time_log_uploads), not every project table.
 // newGlobalMembers needs no separate handling — syncProjectRoster already
 // creates a team_members row for anyone in `team` who doesn't have one yet.
 export async function updateProjectWithMembers(updatedProject: Project): Promise<void> {
-  await upsertProjectCore(updatedProject.id, false, updatedProject, '');
-  await syncProjectContacts(updatedProject.id, updatedProject);
-  await syncPartialDeliveries(updatedProject.id, updatedProject.partialDeliveries);
   await syncProjectRoster(updatedProject.id, updatedProject.team);
   await syncActualTimeTracking(updatedProject.id, updatedProject.actualTimeTracking);
 }

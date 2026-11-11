@@ -407,7 +407,16 @@ const App: React.FC = () => {
               return [...prev, ...toAdd];
           });
       }
-      apiUpdateProjectWithMembers(updatedProject).catch(handlePersistError);
+      // Returned (not just fired) so a multi-project import can await each
+      // project's persist in turn instead of racing several at once, and
+      // find out which ones actually failed (never rejects, so callers that
+      // ignore the result behave exactly as before).
+      return apiUpdateProjectWithMembers(updatedProject)
+          .then(() => true)
+          .catch(err => {
+              handlePersistError(err);
+              return false;
+          });
   };
 
   const handleSaveClientFinancials = (clientInfo: ClientInfo) => {

@@ -11,7 +11,7 @@ interface InternalTeamProps {
   globalRates: Record<string, number>;
   availableGlobalMembers?: TeamMember[];
   onUpdateInternalCost: (projectId: string, memberContact: string, costInfo: InternalCostInfo) => void;
-  onUpdateProject?: (updatedProject: Project, newGlobalMembers?: TeamMember[]) => void;
+  onUpdateProject?: (updatedProject: Project, newGlobalMembers?: TeamMember[]) => void | Promise<boolean>;
 }
 
 const formatEuro = (amount: number) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(amount);
@@ -894,7 +894,7 @@ const ProjectSection: React.FC<{
     globalRates: Record<string, number>;
     availableGlobalMembers?: TeamMember[];
     onUpdateInternalCost: (projectId: string, memberContact: string, costInfo: InternalCostInfo) => void;
-    onUpdateProject?: (updatedProject: Project, newGlobalMembers?: TeamMember[]) => void;
+    onUpdateProject?: (updatedProject: Project, newGlobalMembers?: TeamMember[]) => void | Promise<boolean>;
 }> = ({ project, globalRates, availableGlobalMembers = [], onUpdateInternalCost, onUpdateProject }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isProjectBreakdownModalOpen, setIsProjectBreakdownModalOpen] = useState(false);
@@ -1505,8 +1505,15 @@ const InternalTeam: React.FC<InternalTeamProps> = ({ projects, globalRates, avai
             return;
         }
 
-        // Pass 2: now actually persist each matched project.
-        plans.forEach(({ project: p, updatedTeam, mergedLogs }) => {
+        // Pass 2: now actually persist each matched project, one at a time.
+        // Saving them all in parallel let two projects that share a brand-new
+        // team member race each other creating that person in the DB; only
+        // the project that lost the race ended up with its fichajes unsaved.
+        // Awaiting each save in turn avoids that race entirely, and tracking
+        // the per-project result here lets us tell the user exactly which
+        // project(s) to re-upload if one still fails for some other reason.
+        const failedProjects: { code: string; name: string }[] = [];
+        for (const { project: p, updatedTeam, mergedLogs } of plans) {
             const updatedProject: Project = {
                 ...p,
                 team: updatedTeam,
@@ -1517,15 +1524,29 @@ const InternalTeam: React.FC<InternalTeamProps> = ({ projects, globalRates, avai
                 }
             };
             if (onUpdateProject) {
-                onUpdateProject(updatedProject, newGlobalMembersAll);
+                const ok = await onUpdateProject(updatedProject, newGlobalMembersAll);
+                if (ok === false) {
+                    failedProjects.push({ code: p.code, name: p.name });
+                }
             }
-        });
+        }
 
-        alert(`¡Importación Multiproyecto realizada con éxito!\n\n` +
-              `• Proyectos vinculados: ${plans.length}\n` +
-              `• Nuevos registros añadidos: ${totalNewAdded}\n` +
-              `• Registros duplicados (omitidos): ${totalDuplicates}\n` +
-              `• Nuevos recursos creados: ${newGlobalMembersAll.length}`);
+        if (failedProjects.length > 0) {
+            alert(
+                `Importación Multiproyecto finalizada con errores.\n\n` +
+                `• Proyectos guardados correctamente: ${plans.length - failedProjects.length}\n` +
+                `• Proyectos que NO se pudieron guardar: ${failedProjects.length}\n` +
+                failedProjects.map(fp => `   - ${fp.code}: ${fp.name}`).join('\n') +
+                `\n\nVuelve a subir el mismo archivo Excel: los fichajes ya guardados no se duplicarán, ` +
+                `solo se intentará guardar de nuevo lo que falló.`
+            );
+        } else {
+            alert(`¡Importación Multiproyecto realizada con éxito!\n\n` +
+                  `• Proyectos vinculados: ${plans.length}\n` +
+                  `• Nuevos registros añadidos: ${totalNewAdded}\n` +
+                  `• Registros duplicados (omitidos): ${totalDuplicates}\n` +
+                  `• Nuevos recursos creados: ${newGlobalMembersAll.length}`);
+        }
     } catch (err) {
         console.error("Error importando fichaje multiproyecto", err);
         alert("Error al leer el archivo Excel/CSV.");
