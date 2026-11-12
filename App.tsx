@@ -73,6 +73,10 @@ const isPortfolioViewRole = (role: string | null) => !!role && PORTFOLIO_VIEW_RO
 // accounting-focused role) shares the read-only portfolio view above but has
 // no access to user management.
 const isAdministradorRole = (role: string | null) => role === 'administrador';
+// "administracion" is the accounting-focused role (Kristel): manages client
+// invoicing/financials across every project, which is why she's also the
+// one who runs the weekly multi-project fichaje import from Odoo.
+const isAdministracionRole = (role: string | null) => role === 'administracion';
 
 const handlePersistError = (err: unknown) => {
   console.error('Error al guardar en Supabase:', err);
@@ -661,7 +665,7 @@ const App: React.FC = () => {
         currentView={currentView}
         setCurrentView={setCurrentView}
         canViewExecutiveDashboard={isPortfolioViewRole(currentUserRole)}
-        showInternalTeam={!isPortfolioViewRole(currentUserRole) || isAdministradorRole(currentUserRole)}
+        showInternalTeam={!isPortfolioViewRole(currentUserRole) || isAdministracionRole(currentUserRole)}
         isAdministracion={isAdministradorRole(currentUserRole)}
         pendingApprovalCount={pendingApprovalCount}
       />
