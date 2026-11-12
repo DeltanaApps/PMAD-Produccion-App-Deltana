@@ -7,6 +7,7 @@ interface SidebarProps {
   currentView: View;
   setCurrentView: (view: View) => void;
   canViewExecutiveDashboard?: boolean;
+  showInternalTeam?: boolean;
   isAdministracion?: boolean;
   pendingApprovalCount?: number;
 }
@@ -49,7 +50,7 @@ const NavItem: React.FC<{
   );
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, canViewExecutiveDashboard, isAdministracion, pendingApprovalCount }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, canViewExecutiveDashboard, showInternalTeam, isAdministracion, pendingApprovalCount }) => {
   const iconClass = "h-6 w-6";
 
   return (
@@ -107,7 +108,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, canViewE
             onClick={() => setCurrentView('planning')}
           />
         )}
-        {!canViewExecutiveDashboard && (
+        {(!canViewExecutiveDashboard || showInternalTeam) && (
           <NavItem
             icon={<BriefcaseIcon className={iconClass} />}
             label="Gestión de Recursos Internos"

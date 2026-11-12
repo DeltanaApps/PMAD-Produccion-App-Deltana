@@ -661,6 +661,7 @@ const App: React.FC = () => {
         currentView={currentView}
         setCurrentView={setCurrentView}
         canViewExecutiveDashboard={isPortfolioViewRole(currentUserRole)}
+        showInternalTeam={!isPortfolioViewRole(currentUserRole) || isAdministradorRole(currentUserRole)}
         isAdministracion={isAdministradorRole(currentUserRole)}
         pendingApprovalCount={pendingApprovalCount}
       />
