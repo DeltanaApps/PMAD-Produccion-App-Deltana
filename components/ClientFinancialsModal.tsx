@@ -80,12 +80,9 @@ const ClientFinancialsModal: React.FC<ClientFinancialsModalProps> = ({ project, 
             if (!src || src === 'Acuerdo' || src === InvoiceSource.Agreement) {
                 return prev.agreement?.amount || 0;
             }
-            if (src.startsWith('Adicional ')) {
-                const parts = src.split(' ');
-                const idx = parseInt(parts[1], 10) - 1;
-                if (idx >= 0 && prev.additionals && prev.additionals[idx]) {
-                    return prev.additionals[idx].amount || 0;
-                }
+            const matchedAdditional = (prev.additionals || []).find((a) => a.id === src);
+            if (matchedAdditional) {
+                return matchedAdditional.amount || 0;
             }
             if (src === InvoiceSource.Additionals) {
                 return (prev.additionals || []).reduce((sum, item) => sum + (item.amount || 0), 0);
@@ -125,7 +122,7 @@ const ClientFinancialsModal: React.FC<ClientFinancialsModalProps> = ({ project, 
 
   const handleAdd = (type: 'additionals' | 'invoices' | 'plannedInvoices') => {
     let newItem;
-    if (type === 'additionals') newItem = { description: '', amount: 0, url: '' };
+    if (type === 'additionals') newItem = { id: crypto.randomUUID(), description: '', amount: 0, url: '' };
     else if (type === 'plannedInvoices') newItem = { id: `plan-${Date.now()}`, description: '', date: '', amount: 0, percentage: 0, source: InvoiceSource.Agreement };
     else newItem = { id: '', amount: 0, date: '', pdfUrl: '', source: InvoiceSource.Agreement };
 
@@ -266,7 +263,7 @@ const ClientFinancialsModal: React.FC<ClientFinancialsModalProps> = ({ project, 
                              >
                                 <option value={InvoiceSource.Agreement}>Acuerdo Principal</option>
                                 {(financials.additionals || []).map((add, idx) => (
-                                    <option key={idx} value={`Adicional ${idx + 1}`}>
+                                    <option key={add.id ?? idx} value={add.id}>
                                         Adicional {idx + 1} {add.description ? `- ${add.description}` : ''}
                                     </option>
                                 ))}
@@ -322,7 +319,7 @@ const ClientFinancialsModal: React.FC<ClientFinancialsModalProps> = ({ project, 
                              >
                                 <option value={InvoiceSource.Agreement}>Acuerdo Principal</option>
                                 {(financials.additionals || []).map((add, idx) => (
-                                    <option key={idx} value={`Adicional ${idx + 1}`}>
+                                    <option key={add.id ?? idx} value={add.id}>
                                         Adicional {idx + 1} {add.description ? `- ${add.description}` : ''}
                                     </option>
                                 ))}

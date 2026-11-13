@@ -69,6 +69,7 @@ interface CollaboratorInvoiceRow {
   amount: number;
   percentage: number | null;
   source: string;
+  additional_id: string | null;
   invoiced?: boolean;
   pdf_url?: string | null;
   // Only present on collaborator_payments rows (invoiced "Nº Factura" the
@@ -109,6 +110,7 @@ interface ProjectInvoiceRow {
   amount: number;
   percentage: number | null;
   source: string;
+  additional_id: string | null;
   invoiced?: boolean;
   pdf_url?: string | null;
   invoice_number?: string | null;
@@ -149,8 +151,8 @@ const PROJECT_SELECT = `
   partial_deliveries:project_partial_deliveries(id, description, date, completed),
   client_agreement:project_client_agreement(amount, offer_url, contract_url),
   client_additionals:project_client_additionals(id, description, amount, url),
-  planned_invoices:project_planned_invoices(id, description, date, amount, percentage, source, invoiced),
-  invoices:project_invoices(id, amount, date, pdf_url, percentage, source, invoice_number),
+  planned_invoices:project_planned_invoices(id, description, date, amount, percentage, source, additional_id, invoiced),
+  invoices:project_invoices(id, amount, date, pdf_url, percentage, source, additional_id, invoice_number),
   time_logs:project_time_logs(id, date, employee_name, hours, project_name_ref, description),
   time_log_upload:project_time_log_uploads(file_name, uploaded_at),
   members:project_members(
@@ -164,8 +166,8 @@ const PROJECT_SELECT = `
     collaborator_agreement:collaborator_agreements(amount, contract_url, start_date, end_date, work_received),
     collaborator_additionals(id, description, amount, url),
     collaborator_partial_deliveries(id, description, date, completed),
-    collaborator_planned_invoices(id, description, date, amount, percentage, source, invoiced),
-    collaborator_payments(id, amount, date, pdf_url, percentage, source, invoice_number)
+    collaborator_planned_invoices(id, description, date, amount, percentage, source, additional_id, invoiced),
+    collaborator_payments(id, amount, date, pdf_url, percentage, source, additional_id, invoice_number)
   )
 `;
 
@@ -210,6 +212,7 @@ const mapClientInfo = (row: ProjectRow): ClientInfo | undefined => {
       contractUrl: row.client_agreement.contract_url ?? undefined,
     },
     additionals: row.client_additionals.map((a) => ({
+      id: a.id,
       description: a.description,
       amount: a.amount,
       url: a.url ?? undefined,
@@ -220,7 +223,7 @@ const mapClientInfo = (row: ProjectRow): ClientInfo | undefined => {
       date: pi.date,
       amount: pi.amount,
       percentage: pi.percentage ?? undefined,
-      source: INVOICE_SOURCE_FROM_DB(pi.source),
+      source: INVOICE_SOURCE_FROM_DB(pi.source, pi.additional_id),
     })),
     invoices: row.invoices.map((inv) => ({
       // Falls back to the row's own uuid only for invoices saved before
@@ -230,7 +233,7 @@ const mapClientInfo = (row: ProjectRow): ClientInfo | undefined => {
       date: inv.date,
       pdfUrl: inv.pdf_url ?? '',
       percentage: inv.percentage ?? undefined,
-      source: INVOICE_SOURCE_FROM_DB(inv.source),
+      source: INVOICE_SOURCE_FROM_DB(inv.source, inv.additional_id),
     })),
   };
 };
@@ -279,6 +282,7 @@ const mapMember = (row: ProjectMemberRow): TeamMember => {
         contractUrl: agreement.contract_url ?? '',
       },
       additionals: row.collaborator_additionals.map((a) => ({
+        id: a.id,
         description: a.description,
         amount: a.amount,
         url: a.url ?? undefined,
@@ -289,7 +293,7 @@ const mapMember = (row: ProjectMemberRow): TeamMember => {
         date: pi.date,
         amount: pi.amount,
         percentage: pi.percentage ?? undefined,
-        source: INVOICE_SOURCE_FROM_DB(pi.source),
+        source: INVOICE_SOURCE_FROM_DB(pi.source, pi.additional_id),
       })),
       invoices: row.collaborator_payments.map((p) => ({
         id: p.invoice_number ?? p.id,
@@ -297,7 +301,7 @@ const mapMember = (row: ProjectMemberRow): TeamMember => {
         date: p.date,
         pdfUrl: p.pdf_url ?? '',
         percentage: p.percentage ?? undefined,
-        source: INVOICE_SOURCE_FROM_DB(p.source),
+        source: INVOICE_SOURCE_FROM_DB(p.source, p.additional_id),
       })),
       partialDeliveries: row.collaborator_partial_deliveries.map(mapCollaboratorPartialDelivery),
       startDate: agreement.start_date ?? undefined,
