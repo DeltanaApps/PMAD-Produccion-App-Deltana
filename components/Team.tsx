@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import type { Project, TeamMember } from '../types';
 import { MemberType, ProjectStatus } from '../types';
 import TeamMemberModal from './TeamMemberModal';
+import ConfirmDeleteMemberModal from './ConfirmDeleteMemberModal';
 import { PencilIcon, TrashIcon, PlusIcon } from './ui/Icons';
 
 interface TeamProps {
@@ -60,6 +61,7 @@ const Team: React.FC<TeamProps> = ({
 }) => {
   const [selectedMember, setSelectedMember] = useState<ResourceRow | null>(null);
   const [activeCategory, setActiveCategory] = useState<'internal' | 'external' | null>(null);
+  const [memberPendingDelete, setMemberPendingDelete] = useState<ResourceRow | null>(null);
 
   const { internalMembers, externalMembers } = useMemo(() => {
     const memberMap = new Map<string, ResourceRow>();
@@ -109,11 +111,17 @@ const Team: React.FC<TeamProps> = ({
     await onDeleteCatalogMember(member.contact);
   };
 
-  const handleDeleteRow = async (member: ResourceRow) => {
-    if (!window.confirm(`¿Eliminar definitivamente a "${member.name}" de Recursos?`)) return;
+  const handleDeleteRow = (member: ResourceRow) => {
+    setMemberPendingDelete(member);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!memberPendingDelete) return;
     try {
-      await deleteMemberRaw(member);
+      await deleteMemberRaw(memberPendingDelete);
+      setMemberPendingDelete(null);
     } catch (err: any) {
+      setMemberPendingDelete(null);
       alert(
         err?.code === '23503'
           ? 'Este recurso participa en un proyecto de otro gestor que no podés ver, así que no se puede eliminar desde acá.'
@@ -261,6 +269,13 @@ const Team: React.FC<TeamProps> = ({
             onDeleteMember={canDeleteRow(selectedMember) ? () => deleteMemberRaw(selectedMember) : undefined}
           />
         )}
+        {memberPendingDelete && (
+          <ConfirmDeleteMemberModal
+            memberName={memberPendingDelete.name}
+            onCancel={() => setMemberPendingDelete(null)}
+            onConfirm={handleConfirmDelete}
+          />
+        )}
       </div>
     );
   }
@@ -299,6 +314,13 @@ const Team: React.FC<TeamProps> = ({
           onUpdateMemberName={onUpdateMemberName}
           onUpdateMemberContact={onUpdateMemberContact}
           onDeleteMember={canDeleteRow(selectedMember) ? () => deleteMemberRaw(selectedMember) : undefined}
+        />
+      )}
+      {memberPendingDelete && (
+        <ConfirmDeleteMemberModal
+          memberName={memberPendingDelete.name}
+          onCancel={() => setMemberPendingDelete(null)}
+          onConfirm={handleConfirmDelete}
         />
       )}
     </div>

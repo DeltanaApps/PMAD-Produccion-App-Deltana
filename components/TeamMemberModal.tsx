@@ -3,6 +3,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import type { Project, TeamMember } from '../types';
 import { ProjectStatus, MemberType } from '../types';
 import Card from './ui/Card';
+import ConfirmDeleteMemberModal from './ConfirmDeleteMemberModal';
 import { PencilIcon } from './ui/Icons';
 
 interface TeamMemberModalProps {
@@ -33,10 +34,10 @@ const CloseIcon: React.FC<{ className?: string }> = ({ className }) => (
 const TeamMemberModal: React.FC<TeamMemberModalProps> = ({ member, projects, internalRate, onUpdateRate, onUpdateMemberType, onUpdateMemberName, onUpdateMemberContact, onDeleteMember, onClose }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   const handleDelete = async () => {
     if (!onDeleteMember) return;
-    if (!window.confirm(`¿Eliminar definitivamente a "${member.name}" de Recursos? Esta acción no se puede deshacer.`)) return;
     setIsDeleting(true);
     setDeleteError(null);
     try {
@@ -384,13 +385,23 @@ const TeamMemberModal: React.FC<TeamMemberModalProps> = ({ member, projects, int
                     {onDeleteMember && (
                         <div className="mt-4">
                             <button
-                                onClick={handleDelete}
+                                onClick={() => setShowConfirmDelete(true)}
                                 disabled={isDeleting}
                                 className="text-sm text-red-400 hover:text-red-300 hover:underline disabled:opacity-50"
                             >
                                 {isDeleting ? 'Eliminando…' : 'Eliminar este recurso'}
                             </button>
                             {deleteError && <p className="text-xs text-red-400 mt-2">{deleteError}</p>}
+                            {showConfirmDelete && (
+                                <ConfirmDeleteMemberModal
+                                    memberName={member.name}
+                                    onCancel={() => setShowConfirmDelete(false)}
+                                    onConfirm={async () => {
+                                        setShowConfirmDelete(false);
+                                        await handleDelete();
+                                    }}
+                                />
+                            )}
                         </div>
                     )}
                 </div>
