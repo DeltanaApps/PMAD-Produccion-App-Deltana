@@ -216,6 +216,7 @@ async function syncActualTimeTracking(projectId: string, tracking: Project['actu
       employee_name: log.employeeName,
       hours: log.hours,
       project_name_ref: log.projectNameRef ?? null,
+      description: log.description ?? null,
     }))
   );
 

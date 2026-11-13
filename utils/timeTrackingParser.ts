@@ -136,6 +136,7 @@ export const parseTimeTrackingFile = async (file: File): Promise<ActualTimeLog[]
     const colB = row[1];
     const colC = row[2] ? String(row[2]).trim() : '';
     const colD = row[3] !== undefined && row[3] !== null ? row[3] : row[2]; // Fallback if 3 cols
+    const colE = row[4] !== undefined && row[4] !== null ? String(row[4]).trim() : '';
 
     // Skip header row if colD or colC is a text label like 'Cantidad', 'Horas', 'Empleado', etc.
     const colDStr = String(colD).trim().toLowerCase();
@@ -176,6 +177,7 @@ export const parseTimeTrackingFile = async (file: File): Promise<ActualTimeLog[]
       date: formattedDate,
       employeeName: colC,
       hours: parseFloat(hours.toFixed(2)),
+      description: colE || undefined,
     });
   }
 

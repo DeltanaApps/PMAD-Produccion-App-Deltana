@@ -141,6 +141,7 @@ export interface ActualTimeLog {
   employeeName: string; // Col C: Empleado
   hours: number; // Col D: Cantidad (positive or negative)
   projectNameRef?: string; // Col A: Nombre de proyecto (referencial)
+  description?: string; // Col E: Descripción
 }
 
 export interface ActualTimeTrackingUpload {

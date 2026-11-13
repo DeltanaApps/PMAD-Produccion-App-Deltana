@@ -745,6 +745,7 @@ const MemberRow: React.FC<{
                                                 <tr>
                                                     <th className="py-2 px-3">Fecha</th>
                                                     <th className="py-2 px-3">Proyecto Ref.</th>
+                                                    <th className="py-2 px-3">Descripción</th>
                                                     <th className="py-2 px-3 text-right">Horas</th>
                                                     <th className="py-2 px-3 text-right">Coste Real</th>
                                                     <th className="py-2 px-3 text-center">Acción</th>
@@ -755,6 +756,7 @@ const MemberRow: React.FC<{
                                                     <tr key={log.id} className="hover:bg-gray-800/30">
                                                         <td className="py-1.5 px-3 font-mono text-gray-300">{log.date}</td>
                                                         <td className="py-1.5 px-3 text-gray-400">{log.projectNameRef || '-'}</td>
+                                                        <td className="py-1.5 px-3 text-gray-400 max-w-[220px] truncate" title={log.description || ''}>{log.description || '-'}</td>
                                                         <td className={`py-1.5 px-3 text-right font-mono font-bold ${log.hours >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                                                             {log.hours > 0 ? `+${log.hours}` : log.hours} h
                                                         </td>

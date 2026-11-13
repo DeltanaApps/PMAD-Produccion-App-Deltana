@@ -131,7 +131,14 @@ interface ProjectRow {
   client_additionals: { id: string; description: string; amount: number; url: string | null }[];
   planned_invoices: ProjectInvoiceRow[];
   invoices: ProjectInvoiceRow[];
-  time_logs: { id: string; date: string; employee_name: string; hours: number; project_name_ref: string | null }[];
+  time_logs: {
+    id: string;
+    date: string;
+    employee_name: string;
+    hours: number;
+    project_name_ref: string | null;
+    description: string | null;
+  }[];
   time_log_upload: { file_name: string | null; uploaded_at: string | null } | null;
   members: ProjectMemberRow[];
 }
@@ -144,7 +151,7 @@ const PROJECT_SELECT = `
   client_additionals:project_client_additionals(id, description, amount, url),
   planned_invoices:project_planned_invoices(id, description, date, amount, percentage, source, invoiced),
   invoices:project_invoices(id, amount, date, pdf_url, percentage, source, invoice_number),
-  time_logs:project_time_logs(id, date, employee_name, hours, project_name_ref),
+  time_logs:project_time_logs(id, date, employee_name, hours, project_name_ref, description),
   time_log_upload:project_time_log_uploads(file_name, uploaded_at),
   members:project_members(
     id, role, task, active, team_member_id,
@@ -239,6 +246,7 @@ const mapActualTimeTracking = (row: ProjectRow): ActualTimeTrackingUpload | unde
       employeeName: log.employee_name,
       hours: log.hours,
       projectNameRef: log.project_name_ref ?? undefined,
+      description: log.description ?? undefined,
     })),
   };
 };
