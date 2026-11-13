@@ -69,6 +69,35 @@ async function findOrCreateClientId(name: string, createdBy: string): Promise<st
   return created.id;
 }
 
+// Inserts the new rows before removing the old ones (captured by id
+// beforehand), instead of deleting first. Previously every "replace all
+// rows for this project/member" sync deleted first and inserted after: if
+// the insert threw partway (validation, RLS, a dropped connection), the
+// table was left empty — real invoices/payments gone with no transaction to
+// roll it back. Inserting first means a failed insert leaves the old rows
+// untouched; the worst case if the later delete itself fails is duplicate
+// rows (visible and fixable), never zero rows.
+async function replaceRows(
+  table: string,
+  fkColumn: string,
+  fkValue: string,
+  newRows: Record<string, unknown>[]
+): Promise<void> {
+  const { data: oldRows, error: selectError } = await supabase.from(table).select('id').eq(fkColumn, fkValue);
+  if (selectError) throw selectError;
+  const oldIds = (oldRows ?? []).map((r) => r.id);
+
+  if (newRows.length > 0) {
+    const { error: insertError } = await supabase.from(table).insert(newRows);
+    if (insertError) throw insertError;
+  }
+
+  if (oldIds.length > 0) {
+    const { error: deleteError } = await supabase.from(table).delete().in('id', oldIds);
+    if (deleteError) throw deleteError;
+  }
+}
+
 export async function deleteClient(clientId: string): Promise<void> {
   const { error } = await supabase.from('clients').delete().eq('id', clientId);
   if (error) throw error;
@@ -300,50 +329,47 @@ export async function saveClientFinancials(projectId: string, clientInfo: Client
   );
   if (agreementError) throw agreementError;
 
-  await supabase.from('project_client_additionals').delete().eq('project_id', projectId);
-  if (clientInfo.additionals.length > 0) {
-    const { error } = await supabase.from('project_client_additionals').insert(
-      clientInfo.additionals.map((a) => ({
-        project_id: projectId,
-        description: a.description,
-        amount: a.amount,
-        url: a.url || null,
-      }))
-    );
-    if (error) throw error;
-  }
+  await replaceRows(
+    'project_client_additionals',
+    'project_id',
+    projectId,
+    clientInfo.additionals.map((a) => ({
+      project_id: projectId,
+      description: a.description,
+      amount: a.amount,
+      url: a.url || null,
+    }))
+  );
 
-  await supabase.from('project_planned_invoices').delete().eq('project_id', projectId);
-  if (clientInfo.plannedInvoices.length > 0) {
-    const { error } = await supabase.from('project_planned_invoices').insert(
-      clientInfo.plannedInvoices.map((pi) => ({
-        project_id: projectId,
-        description: pi.description,
-        date: pi.date,
-        amount: pi.amount,
-        percentage: pi.percentage ?? null,
-        source: INVOICE_SOURCE_TO_DB(pi.source),
-        invoiced: false,
-      }))
-    );
-    if (error) throw error;
-  }
+  await replaceRows(
+    'project_planned_invoices',
+    'project_id',
+    projectId,
+    clientInfo.plannedInvoices.map((pi) => ({
+      project_id: projectId,
+      description: pi.description,
+      date: pi.date,
+      amount: pi.amount,
+      percentage: pi.percentage ?? null,
+      source: INVOICE_SOURCE_TO_DB(pi.source),
+      invoiced: false,
+    }))
+  );
 
-  await supabase.from('project_invoices').delete().eq('project_id', projectId);
-  if (clientInfo.invoices.length > 0) {
-    const { error } = await supabase.from('project_invoices').insert(
-      clientInfo.invoices.map((inv) => ({
-        project_id: projectId,
-        amount: inv.amount,
-        date: inv.date,
-        pdf_url: inv.pdfUrl || null,
-        percentage: inv.percentage ?? null,
-        source: INVOICE_SOURCE_TO_DB(inv.source),
-        invoice_number: inv.id || null,
-      }))
-    );
-    if (error) throw error;
-  }
+  await replaceRows(
+    'project_invoices',
+    'project_id',
+    projectId,
+    clientInfo.invoices.map((inv) => ({
+      project_id: projectId,
+      amount: inv.amount,
+      date: inv.date,
+      pdf_url: inv.pdfUrl || null,
+      percentage: inv.percentage ?? null,
+      source: INVOICE_SOURCE_TO_DB(inv.source),
+      invoice_number: inv.id || null,
+    }))
+  );
 }
 
 export async function removeCollaboratorFromProject(projectId: string, memberContact: string): Promise<void> {
@@ -383,63 +409,59 @@ export async function saveCollaboratorFinancials(
   );
   if (agreementError) throw agreementError;
 
-  await supabase.from('collaborator_additionals').delete().eq('project_member_id', projectMemberId);
-  if (financialInfo.additionals.length > 0) {
-    const { error } = await supabase.from('collaborator_additionals').insert(
-      financialInfo.additionals.map((a) => ({
-        project_member_id: projectMemberId,
-        description: a.description,
-        amount: a.amount,
-        url: a.url || null,
-      }))
-    );
-    if (error) throw error;
-  }
+  await replaceRows(
+    'collaborator_additionals',
+    'project_member_id',
+    projectMemberId,
+    financialInfo.additionals.map((a) => ({
+      project_member_id: projectMemberId,
+      description: a.description,
+      amount: a.amount,
+      url: a.url || null,
+    }))
+  );
 
-  await supabase.from('collaborator_partial_deliveries').delete().eq('project_member_id', projectMemberId);
-  if (financialInfo.partialDeliveries && financialInfo.partialDeliveries.length > 0) {
-    const { error } = await supabase.from('collaborator_partial_deliveries').insert(
-      financialInfo.partialDeliveries.map((d) => ({
-        project_member_id: projectMemberId,
-        description: d.description,
-        date: d.date,
-        completed: d.completed,
-      }))
-    );
-    if (error) throw error;
-  }
+  await replaceRows(
+    'collaborator_partial_deliveries',
+    'project_member_id',
+    projectMemberId,
+    (financialInfo.partialDeliveries ?? []).map((d) => ({
+      project_member_id: projectMemberId,
+      description: d.description,
+      date: d.date,
+      completed: d.completed,
+    }))
+  );
 
-  await supabase.from('collaborator_planned_invoices').delete().eq('project_member_id', projectMemberId);
-  if (financialInfo.plannedInvoices && financialInfo.plannedInvoices.length > 0) {
-    const { error } = await supabase.from('collaborator_planned_invoices').insert(
-      financialInfo.plannedInvoices.map((pi) => ({
-        project_member_id: projectMemberId,
-        description: pi.description,
-        date: pi.date,
-        amount: pi.amount,
-        percentage: pi.percentage ?? null,
-        source: INVOICE_SOURCE_TO_DB(pi.source),
-        invoiced: false,
-      }))
-    );
-    if (error) throw error;
-  }
+  await replaceRows(
+    'collaborator_planned_invoices',
+    'project_member_id',
+    projectMemberId,
+    (financialInfo.plannedInvoices ?? []).map((pi) => ({
+      project_member_id: projectMemberId,
+      description: pi.description,
+      date: pi.date,
+      amount: pi.amount,
+      percentage: pi.percentage ?? null,
+      source: INVOICE_SOURCE_TO_DB(pi.source),
+      invoiced: false,
+    }))
+  );
 
-  await supabase.from('collaborator_payments').delete().eq('project_member_id', projectMemberId);
-  if (financialInfo.invoices.length > 0) {
-    const { error } = await supabase.from('collaborator_payments').insert(
-      financialInfo.invoices.map((inv) => ({
-        project_member_id: projectMemberId,
-        amount: inv.amount,
-        date: inv.date,
-        pdf_url: inv.pdfUrl || null,
-        percentage: inv.percentage ?? null,
-        source: INVOICE_SOURCE_TO_DB(inv.source),
-        invoice_number: inv.id || null,
-      }))
-    );
-    if (error) throw error;
-  }
+  await replaceRows(
+    'collaborator_payments',
+    'project_member_id',
+    projectMemberId,
+    financialInfo.invoices.map((inv) => ({
+      project_member_id: projectMemberId,
+      amount: inv.amount,
+      date: inv.date,
+      pdf_url: inv.pdfUrl || null,
+      percentage: inv.percentage ?? null,
+      source: INVOICE_SOURCE_TO_DB(inv.source),
+      invoice_number: inv.id || null,
+    }))
+  );
 }
 
 export async function saveInternalFinancials(
