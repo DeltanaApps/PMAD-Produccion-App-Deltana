@@ -29,6 +29,9 @@ const WORK_RANGE_TASK_OPTIONS = [
   'UTILITIES DRY',
   'UTILITIES WET',
   'CIVIL & LANDSCAPE (Caminos, peatonales, zonas verdes)',
+  'TÉCNICO',
+  'COORDINACIÓN',
+  'GESTOR',
 ];
 
 // --- HELPER FUNCTIONS ---

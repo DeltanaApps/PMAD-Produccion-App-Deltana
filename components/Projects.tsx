@@ -68,6 +68,7 @@ const formatEuro = (amount: number) => new Intl.NumberFormat('es-ES', { style: '
 const Projects: React.FC<ProjectsProps> = ({ projects, internalRates, onAddProject, onEditProject, onViewProject, projectManagers, readOnly }) => {
   const [activeTab, setActiveTab] = useState<ProjectTab>(ProjectStatus.InProgress);
   const [managerFilter, setManagerFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const TABS: { id: ProjectTab; label: string }[] = [
     { id: ProjectStatus.InProgress, label: 'En Proceso' },
@@ -87,7 +88,16 @@ const Projects: React.FC<ProjectsProps> = ({ projects, internalRates, onAddProje
 
   const filteredProjects = projects
     .filter(p => p.status === activeTab)
-    .filter(p => managerFilter === 'all' || projectManagers?.[p.id]?.id === managerFilter);
+    .filter(p => managerFilter === 'all' || projectManagers?.[p.id]?.id === managerFilter)
+    .filter(p => {
+      const q = searchQuery.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        p.name.toLowerCase().includes(q) ||
+        p.code.toLowerCase().includes(q) ||
+        (p.client || '').toLowerCase().includes(q)
+      );
+    });
 
   const getTabClass = (tabId: ProjectTab) => {
     return activeTab === tabId
@@ -172,9 +182,16 @@ const Projects: React.FC<ProjectsProps> = ({ projects, internalRates, onAddProje
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-8 gap-4 flex-wrap">
         <h1 className="text-3xl font-bold text-white">{readOnly ? 'Proyectos' : 'Mis Proyectos'}</h1>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar por nombre, código o cliente..."
+            className="bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 w-64"
+          />
           <div className="flex space-x-1 bg-gray-800 p-1 rounded-lg">
             {TABS.map(tab => (
               <button
