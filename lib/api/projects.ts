@@ -166,9 +166,6 @@ async function syncProjectContacts(
   projectId: string,
   project: Pick<Project, 'technicalContacts' | 'economicContacts' | 'generalContact'>
 ): Promise<void> {
-  const { error: deleteError } = await supabase.from('project_contacts').delete().eq('project_id', projectId);
-  if (deleteError) throw deleteError;
-
   const rows = [
     ...(project.technicalContacts ?? []).map((c) => ({ ...c, contact_group: 'tecnico' as const })),
     ...(project.economicContacts ?? []).map((c) => ({ ...c, contact_group: 'economico' as const })),
@@ -184,30 +181,21 @@ async function syncProjectContacts(
     description: c.description || null,
   }));
 
-  if (rows.length > 0) {
-    const { error: insertError } = await supabase.from('project_contacts').insert(rows);
-    if (insertError) throw insertError;
-  }
+  await replaceRows('project_contacts', 'project_id', projectId, rows);
 }
 
 async function syncPartialDeliveries(projectId: string, deliveries: Project['partialDeliveries']): Promise<void> {
-  const { error: deleteError } = await supabase
-    .from('project_partial_deliveries')
-    .delete()
-    .eq('project_id', projectId);
-  if (deleteError) throw deleteError;
-
-  if (deliveries && deliveries.length > 0) {
-    const { error: insertError } = await supabase.from('project_partial_deliveries').insert(
-      deliveries.map((d) => ({
-        project_id: projectId,
-        description: d.description,
-        date: d.date,
-        completed: d.completed,
-      }))
-    );
-    if (insertError) throw insertError;
-  }
+  await replaceRows(
+    'project_partial_deliveries',
+    'project_id',
+    projectId,
+    (deliveries ?? []).map((d) => ({
+      project_id: projectId,
+      description: d.description,
+      date: d.date,
+      completed: d.completed,
+    }))
+  );
 }
 
 // Persists the fichaje import shown in "Gestión de Recursos Internos" --
@@ -218,21 +206,18 @@ async function syncPartialDeliveries(projectId: string, deliveries: Project['par
 // clearing both tables when tracking is undefined (the explicit "borrar
 // fichajes importados" action).
 async function syncActualTimeTracking(projectId: string, tracking: Project['actualTimeTracking']): Promise<void> {
-  const { error: deleteError } = await supabase.from('project_time_logs').delete().eq('project_id', projectId);
-  if (deleteError) throw deleteError;
-
-  if (tracking && tracking.logs.length > 0) {
-    const { error: insertError } = await supabase.from('project_time_logs').insert(
-      tracking.logs.map((log) => ({
-        project_id: projectId,
-        date: log.date,
-        employee_name: log.employeeName,
-        hours: log.hours,
-        project_name_ref: log.projectNameRef ?? null,
-      }))
-    );
-    if (insertError) throw insertError;
-  }
+  await replaceRows(
+    'project_time_logs',
+    'project_id',
+    projectId,
+    (tracking?.logs ?? []).map((log) => ({
+      project_id: projectId,
+      date: log.date,
+      employee_name: log.employeeName,
+      hours: log.hours,
+      project_name_ref: log.projectNameRef ?? null,
+    }))
+  );
 
   if (tracking) {
     const { error: uploadError } = await supabase.from('project_time_log_uploads').upsert(
