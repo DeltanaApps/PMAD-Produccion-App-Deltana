@@ -22,6 +22,7 @@ export interface Agreement {
 }
 
 export interface Additional {
+  id?: string; // stable DB id, used as the "Origen" reference from invoices -- not a display field
   description: string;
   amount: number;
   url?: string;
@@ -58,6 +59,7 @@ export interface CollaboratorAgreement {
 }
   
 export interface CollaboratorAdditional {
+    id?: string; // stable DB id, used as the "Origen" reference from invoices -- not a display field
     description: string;
     amount: number;
     url?: string; // Link to the agreement of this additional

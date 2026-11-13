@@ -67,12 +67,9 @@ const CollaboratorFinancialsModal: React.FC<CollaboratorFinancialsModalProps> = 
     if (!src || src === 'Acuerdo' || src === InvoiceSource.Agreement) {
         return currentFinancials.agreement?.amount || 0;
     }
-    if (src.startsWith('Adicional ')) {
-        const parts = src.split(' ');
-        const idx = parseInt(parts[1], 10) - 1;
-        if (idx >= 0 && currentFinancials.additionals && currentFinancials.additionals[idx]) {
-            return currentFinancials.additionals[idx].amount || 0;
-        }
+    const matchedAdditional = (currentFinancials.additionals || []).find((a) => a.id === src);
+    if (matchedAdditional) {
+        return matchedAdditional.amount || 0;
     }
     if (src === InvoiceSource.Additionals) {
         return (currentFinancials.additionals || []).reduce((sum, item) => sum + (item.amount || 0), 0);
@@ -168,12 +165,12 @@ const CollaboratorFinancialsModal: React.FC<CollaboratorFinancialsModalProps> = 
             ...list[index],
             [name]: name === 'amount' ? newAmount : value
         };
-        
+
         const updated = { ...prev, additionals: list };
 
         // If additional amount changed, recalculate percentages for invoices linked to this additional
         if (name === 'amount') {
-            const targetSource = `Adicional ${index + 1}`;
+            const targetSource = list[index].id;
             const updatedPlanned = (prev.plannedInvoices || []).map(item => {
                 if (item.source === targetSource) {
                     return {
@@ -209,7 +206,7 @@ const CollaboratorFinancialsModal: React.FC<CollaboratorFinancialsModalProps> = 
 
   const handleAdd = (type: 'additionals' | 'invoices' | 'plannedInvoices') => {
     if (type === 'additionals') {
-        setFinancials(prev => ({ ...prev, additionals: [...(prev.additionals || []), { description: '', amount: 0, url: '' }] }));
+        setFinancials(prev => ({ ...prev, additionals: [...(prev.additionals || []), { id: crypto.randomUUID(), description: '', amount: 0, url: '' }] }));
     } else if (type === 'plannedInvoices') {
         const newItem: PlannedInvoice = { 
             id: `pi-${Date.now()}`, 
@@ -443,7 +440,7 @@ const CollaboratorFinancialsModal: React.FC<CollaboratorFinancialsModalProps> = 
                             >
                                 <option value={InvoiceSource.Agreement}>Acuerdo Principal</option>
                                 {(financials.additionals || []).map((add, idx) => (
-                                    <option key={idx} value={`Adicional ${idx + 1}`}>
+                                    <option key={add.id ?? idx} value={add.id}>
                                         Adicional {idx + 1} {add.description ? `- ${add.description}` : ''}
                                     </option>
                                 ))}
@@ -503,7 +500,7 @@ const CollaboratorFinancialsModal: React.FC<CollaboratorFinancialsModalProps> = 
                             >
                                 <option value={InvoiceSource.Agreement}>Acuerdo Principal</option>
                                 {(financials.additionals || []).map((add, idx) => (
-                                    <option key={idx} value={`Adicional ${idx + 1}`}>
+                                    <option key={add.id ?? idx} value={add.id}>
                                         Adicional {idx + 1} {add.description ? `- ${add.description}` : ''}
                                     </option>
                                 ))}

@@ -98,6 +98,44 @@ async function replaceRows(
   }
 }
 
+// Additionals need their id to survive a re-save (invoices reference it as
+// their "Origen" -- see INVOICE_SOURCE_TO_DB), so this can't reuse
+// replaceRows above: that one assumes "new" rows never collide with "old"
+// ones, which breaks the moment a kept additional reinserts under the same
+// id while its old row is still there. Upsert instead (update kept rows in
+// place, insert brand-new ones), then delete whichever old ids didn't come
+// back in the new list -- same "never leaves the table empty on a failed
+// write" guarantee, just via update-or-insert instead of insert-then-delete.
+async function syncAdditionals(
+  table: string,
+  fkColumn: string,
+  fkValue: string,
+  additionals: { id?: string; description: string; amount: number; url?: string }[]
+): Promise<void> {
+  const { data: oldRows, error: selectError } = await supabase.from(table).select('id').eq(fkColumn, fkValue);
+  if (selectError) throw selectError;
+
+  const rows = additionals.map((a) => ({
+    id: a.id ?? crypto.randomUUID(),
+    [fkColumn]: fkValue,
+    description: a.description,
+    amount: a.amount,
+    url: a.url || null,
+  }));
+
+  if (rows.length > 0) {
+    const { error: upsertError } = await supabase.from(table).upsert(rows);
+    if (upsertError) throw upsertError;
+  }
+
+  const keptIds = new Set(rows.map((r) => r.id));
+  const removedIds = (oldRows ?? []).map((r) => r.id).filter((id) => !keptIds.has(id));
+  if (removedIds.length > 0) {
+    const { error: deleteError } = await supabase.from(table).delete().in('id', removedIds);
+    if (deleteError) throw deleteError;
+  }
+}
+
 export async function deleteClient(clientId: string): Promise<void> {
   const { error } = await supabase.from('clients').delete().eq('id', clientId);
   if (error) throw error;
@@ -315,46 +353,44 @@ export async function saveClientFinancials(projectId: string, clientInfo: Client
   );
   if (agreementError) throw agreementError;
 
-  await replaceRows(
-    'project_client_additionals',
-    'project_id',
-    projectId,
-    clientInfo.additionals.map((a) => ({
-      project_id: projectId,
-      description: a.description,
-      amount: a.amount,
-      url: a.url || null,
-    }))
-  );
+  await syncAdditionals('project_client_additionals', 'project_id', projectId, clientInfo.additionals);
 
   await replaceRows(
     'project_planned_invoices',
     'project_id',
     projectId,
-    clientInfo.plannedInvoices.map((pi) => ({
-      project_id: projectId,
-      description: pi.description,
-      date: pi.date,
-      amount: pi.amount,
-      percentage: pi.percentage ?? null,
-      source: INVOICE_SOURCE_TO_DB(pi.source),
-      invoiced: false,
-    }))
+    clientInfo.plannedInvoices.map((pi) => {
+      const { source, additionalId } = INVOICE_SOURCE_TO_DB(pi.source, clientInfo.additionals);
+      return {
+        project_id: projectId,
+        description: pi.description,
+        date: pi.date,
+        amount: pi.amount,
+        percentage: pi.percentage ?? null,
+        source,
+        additional_id: additionalId,
+        invoiced: false,
+      };
+    })
   );
 
   await replaceRows(
     'project_invoices',
     'project_id',
     projectId,
-    clientInfo.invoices.map((inv) => ({
-      project_id: projectId,
-      amount: inv.amount,
-      date: inv.date,
-      pdf_url: inv.pdfUrl || null,
-      percentage: inv.percentage ?? null,
-      source: INVOICE_SOURCE_TO_DB(inv.source),
-      invoice_number: inv.id || null,
-    }))
+    clientInfo.invoices.map((inv) => {
+      const { source, additionalId } = INVOICE_SOURCE_TO_DB(inv.source, clientInfo.additionals);
+      return {
+        project_id: projectId,
+        amount: inv.amount,
+        date: inv.date,
+        pdf_url: inv.pdfUrl || null,
+        percentage: inv.percentage ?? null,
+        source,
+        additional_id: additionalId,
+        invoice_number: inv.id || null,
+      };
+    })
   );
 }
 
@@ -395,17 +431,7 @@ export async function saveCollaboratorFinancials(
   );
   if (agreementError) throw agreementError;
 
-  await replaceRows(
-    'collaborator_additionals',
-    'project_member_id',
-    projectMemberId,
-    financialInfo.additionals.map((a) => ({
-      project_member_id: projectMemberId,
-      description: a.description,
-      amount: a.amount,
-      url: a.url || null,
-    }))
-  );
+  await syncAdditionals('collaborator_additionals', 'project_member_id', projectMemberId, financialInfo.additionals);
 
   await replaceRows(
     'collaborator_partial_deliveries',
@@ -423,30 +449,38 @@ export async function saveCollaboratorFinancials(
     'collaborator_planned_invoices',
     'project_member_id',
     projectMemberId,
-    (financialInfo.plannedInvoices ?? []).map((pi) => ({
-      project_member_id: projectMemberId,
-      description: pi.description,
-      date: pi.date,
-      amount: pi.amount,
-      percentage: pi.percentage ?? null,
-      source: INVOICE_SOURCE_TO_DB(pi.source),
-      invoiced: false,
-    }))
+    (financialInfo.plannedInvoices ?? []).map((pi) => {
+      const { source, additionalId } = INVOICE_SOURCE_TO_DB(pi.source, financialInfo.additionals);
+      return {
+        project_member_id: projectMemberId,
+        description: pi.description,
+        date: pi.date,
+        amount: pi.amount,
+        percentage: pi.percentage ?? null,
+        source,
+        additional_id: additionalId,
+        invoiced: false,
+      };
+    })
   );
 
   await replaceRows(
     'collaborator_payments',
     'project_member_id',
     projectMemberId,
-    financialInfo.invoices.map((inv) => ({
-      project_member_id: projectMemberId,
-      amount: inv.amount,
-      date: inv.date,
-      pdf_url: inv.pdfUrl || null,
-      percentage: inv.percentage ?? null,
-      source: INVOICE_SOURCE_TO_DB(inv.source),
-      invoice_number: inv.id || null,
-    }))
+    financialInfo.invoices.map((inv) => {
+      const { source, additionalId } = INVOICE_SOURCE_TO_DB(inv.source, financialInfo.additionals);
+      return {
+        project_member_id: projectMemberId,
+        amount: inv.amount,
+        date: inv.date,
+        pdf_url: inv.pdfUrl || null,
+        percentage: inv.percentage ?? null,
+        source,
+        additional_id: additionalId,
+        invoice_number: inv.id || null,
+      };
+    })
   );
 }
 
