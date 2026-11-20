@@ -105,8 +105,8 @@ const App: React.FC = () => {
   };
 
   const handleNavigateToClient = (project: Project) => {
-    setFocusProjectId(null);
     setFocusClientName(project.client);
+    setFocusProjectId(project.id);
     setCurrentView('clients');
   };
 
@@ -641,6 +641,7 @@ const App: React.FC = () => {
                   orphanClients={orphanClients}
                   onDeleteOrphanClient={handleDeleteOrphanClient}
                   initialSelectedClient={focusClientName ?? undefined}
+                  focusProjectId={focusProjectId ?? undefined}
                 />;
       case 'collaborators':
         return <Collaborators

@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { Project, TeamMember, CollaboratorInfo } from '../types';
 import { MemberType } from '../types';
 import Card from './ui/Card';
@@ -375,6 +375,22 @@ const Collaborators: React.FC<CollaboratorsProps> = ({ projects, onSaveFinancial
   }
   
   const selectedData = collaborators.find(c => c.member.contact === selectedCollaborator);
+
+  // When arriving via a "Rec. Externos" shortcut from a project card, jump
+  // straight into that project's financial-management modal for the
+  // auto-selected collaborator, instead of leaving the user to find it in a
+  // list that may hold many other projects for the same person. Guarded so
+  // re-renders (or the user closing the modal) don't force it back open --
+  // it only fires once per distinct focusProjectId.
+  const autoOpenedForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (readOnly || !focusProjectId || !selectedData || autoOpenedForRef.current === focusProjectId) return;
+    const project = selectedData.projects.find(p => p.id === focusProjectId);
+    if (project) {
+      autoOpenedForRef.current = focusProjectId;
+      setFinancialsModalData({ project, collaborator: selectedData.member });
+    }
+  }, [focusProjectId, selectedData]);
 
   const handleSave = (financialInfo: CollaboratorInfo) => {
     if (financialsModalData) {

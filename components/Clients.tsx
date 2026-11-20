@@ -18,6 +18,7 @@ interface ClientsProps {
   orphanClients?: OrphanClient[];
   onDeleteOrphanClient?: (clientId: string) => Promise<void>;
   initialSelectedClient?: string;
+  focusProjectId?: string;
 }
 
 const formatEuro = (amount: number) => (
@@ -339,8 +340,14 @@ const ProjectFinancialsCard: React.FC<{project: Project; onEdit: () => void; rea
     )
 }
 
-const Clients: React.FC<ClientsProps> = ({ projects, onAddClient, onEditFinancials, projectManagers, readOnly, orphanClients, onDeleteOrphanClient, initialSelectedClient }) => {
+const Clients: React.FC<ClientsProps> = ({ projects, onAddClient, onEditFinancials, projectManagers, readOnly, orphanClients, onDeleteOrphanClient, initialSelectedClient, focusProjectId }) => {
   const [selectedClient, setSelectedClient] = useState<string | null>(initialSelectedClient ?? null);
+  // When arriving via a "Cliente" shortcut from a project card, jump straight
+  // into that project's financial-management modal instead of leaving the
+  // user to find it in a list that may hold many other projects for the same
+  // client. Guarded so re-renders (or the user closing the modal) don't force
+  // it back open -- it only fires once per distinct focusProjectId.
+  const autoOpenedForRef = React.useRef<string | null>(null);
   const [managerFilter, setManagerFilter] = useState<string>('all');
 
   const handleDeleteOrphan = async (client: OrphanClient) => {
@@ -386,6 +393,15 @@ const Clients: React.FC<ClientsProps> = ({ projects, onAddClient, onEditFinancia
         setSelectedClient(clients[0][0]);
     }
   }, [clients, selectedClient]);
+
+  useEffect(() => {
+    if (readOnly || !focusProjectId || autoOpenedForRef.current === focusProjectId) return;
+    const project = clients.find(([name]) => name === selectedClient)?.[1].find(p => p.id === focusProjectId);
+    if (project) {
+      autoOpenedForRef.current = focusProjectId;
+      onEditFinancials(project);
+    }
+  }, [focusProjectId, selectedClient, clients, onEditFinancials]);
 
   return (
     <div>
