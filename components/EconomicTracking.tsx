@@ -3,6 +3,9 @@ import type { Project, InternalWorkRange } from '../types';
 import { MemberType, ProjectStatus } from '../types';
 import { EyeIcon } from './ui/Icons';
 
+type SortKey = 'name' | 'budget' | 'internalProjected' | 'internalActual' | 'external' | 'profitProjected' | 'profitActual';
+type SortDirection = 'asc' | 'desc';
+
 interface EconomicTrackingProps {
   projects: Project[];
   globalRates: Record<string, number>;
@@ -83,12 +86,45 @@ const BreakdownModal: React.FC<{
     </div>
 );
 
+const SortableHeader: React.FC<{
+    label: string;
+    sortKey: SortKey;
+    sortConfig: { key: SortKey; direction: SortDirection } | null;
+    onSort: (key: SortKey) => void;
+    align?: 'left' | 'right';
+    className?: string;
+}> = ({ label, sortKey, sortConfig, onSort, align = 'left', className = '' }) => {
+    const isActive = sortConfig?.key === sortKey;
+    const arrow = isActive ? (sortConfig!.direction === 'asc' ? '▲' : '▼') : '';
+    return (
+        <th className={`py-4 px-4 ${align === 'right' ? 'text-right' : ''} ${className}`}>
+            <button
+                onClick={() => onSort(sortKey)}
+                className={`inline-flex items-center gap-1 hover:text-white transition-colors ${align === 'right' ? 'flex-row-reverse' : ''} ${isActive ? 'text-white' : ''}`}
+            >
+                {label}
+                <span className="text-sky-400 text-[9px] w-2 inline-block">{arrow}</span>
+            </button>
+        </th>
+    );
+};
+
 const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRates, projectManagers }) => {
     const [modalData, setModalData] = useState<{
         type: 'budget' | 'internal-projected' | 'internal-actual' | 'external' | 'target-projected' | 'target-actual',
         project: Project
     } | null>(null);
     const [managerFilter, setManagerFilter] = useState<string>('all');
+    const [statusFilter, setStatusFilter] = useState<'all' | ProjectStatus.InProgress | ProjectStatus.Completed>('all');
+    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection } | null>(null);
+
+    const toggleSort = (key: SortKey) => {
+        setSortConfig(prev => {
+            if (!prev || prev.key !== key) return { key, direction: 'asc' };
+            if (prev.direction === 'asc') return { key, direction: 'desc' };
+            return null;
+        });
+    };
 
     const managerOptions = useMemo(() => {
         if (!projectManagers) return [];
@@ -103,6 +139,7 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
     const projectData = useMemo(() => {
         return projects
             .filter(project => project.status !== ProjectStatus.Proposal)
+            .filter(project => statusFilter === 'all' || project.status === statusFilter)
             .filter(project => managerFilter === 'all' || projectManagers?.[project.id]?.id === managerFilter)
             .map(project => {
             // 1. Total Budget
@@ -180,7 +217,31 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
                 hasActualTracking: Boolean(project.actualTimeTracking)
             };
         });
-    }, [projects, globalRates, projectManagers, managerFilter]);
+    }, [projects, globalRates, projectManagers, managerFilter, statusFilter]);
+
+    const sortedProjectData = useMemo(() => {
+        if (!sortConfig) return projectData;
+        const { key, direction } = sortConfig;
+        const dir = direction === 'asc' ? 1 : -1;
+        const getValue = (d: typeof projectData[number]) => {
+            switch (key) {
+                case 'name': return d.project.name.toLowerCase();
+                case 'budget': return d.totalBudget;
+                case 'internalProjected': return d.projectedInternalCosts;
+                case 'internalActual': return d.actualInternalCosts;
+                case 'external': return d.externalCosts;
+                case 'profitProjected': return d.projectedProfit;
+                case 'profitActual': return d.actualProfit;
+            }
+        };
+        return [...projectData].sort((a, b) => {
+            const va = getValue(a);
+            const vb = getValue(b);
+            if (va < vb) return -1 * dir;
+            if (va > vb) return 1 * dir;
+            return 0;
+        });
+    }, [projectData, sortConfig]);
 
     const renderBudgetBreakdown = (data: any) => (
         <div className="space-y-4">
@@ -408,36 +469,48 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
                         Análisis comparativo de rentabilidad. Evalúa el <strong>Gasto Interno Proyectado</strong> frente al <strong>Gasto Interno Real (de fichajes)</strong>, y el impacto sobre el beneficio del proyecto.
                     </p>
                 </div>
-                {managerOptions.length > 0 && (
+                <div className="flex gap-2 flex-shrink-0">
                     <select
-                        value={managerFilter}
-                        onChange={(e) => setManagerFilter(e.target.value)}
-                        className="bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 flex-shrink-0"
-                        title="Filtrar por gestor"
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value as any)}
+                        className="bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                        title="Filtrar por estado"
                     >
-                        <option value="all">Todos los gestores</option>
-                        {managerOptions.map(([id, name]) => (
-                            <option key={id} value={id}>{name}</option>
-                        ))}
+                        <option value="all">Todos los estados</option>
+                        <option value={ProjectStatus.InProgress}>{ProjectStatus.InProgress}</option>
+                        <option value={ProjectStatus.Completed}>{ProjectStatus.Completed}</option>
                     </select>
-                )}
+                    {managerOptions.length > 0 && (
+                        <select
+                            value={managerFilter}
+                            onChange={(e) => setManagerFilter(e.target.value)}
+                            className="bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                            title="Filtrar por gestor"
+                        >
+                            <option value="all">Todos los gestores</option>
+                            {managerOptions.map(([id, name]) => (
+                                <option key={id} value={id}>{name}</option>
+                            ))}
+                        </select>
+                    )}
+                </div>
             </div>
 
             <div className="overflow-x-auto rounded-xl border border-gray-700 shadow-xl bg-gray-800/60">
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="border-b border-gray-700 text-[10px] uppercase text-gray-400 tracking-wider bg-gray-900/80">
-                            <th className="py-4 px-4">Mis Proyectos</th>
-                            <th className="py-4 px-4 text-right">Presupuesto</th>
-                            <th className="py-4 px-4 text-right">Gasto Int. Proyectado</th>
-                            <th className="py-4 px-4 text-right text-emerald-400 font-bold">Gasto Int. Real (Fichaje)</th>
-                            <th className="py-4 px-4 text-right">Coste Recursos Externos</th>
-                            <th className="py-4 px-4 text-right">Beneficio Proyectado</th>
-                            <th className="py-4 px-4 text-right text-emerald-400 font-bold">Beneficio Real a Fecha</th>
+                            <SortableHeader label="Mis Proyectos" sortKey="name" sortConfig={sortConfig} onSort={toggleSort} />
+                            <SortableHeader label="Presupuesto" sortKey="budget" sortConfig={sortConfig} onSort={toggleSort} align="right" />
+                            <SortableHeader label="Gasto Int. Proyectado" sortKey="internalProjected" sortConfig={sortConfig} onSort={toggleSort} align="right" />
+                            <SortableHeader label="Gasto Int. Real (Fichaje)" sortKey="internalActual" sortConfig={sortConfig} onSort={toggleSort} align="right" className="text-emerald-400 font-bold" />
+                            <SortableHeader label="Coste Recursos Externos" sortKey="external" sortConfig={sortConfig} onSort={toggleSort} align="right" />
+                            <SortableHeader label="Beneficio Proyectado" sortKey="profitProjected" sortConfig={sortConfig} onSort={toggleSort} align="right" />
+                            <SortableHeader label="Beneficio Real a Fecha" sortKey="profitActual" sortConfig={sortConfig} onSort={toggleSort} align="right" className="text-emerald-400 font-bold" />
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-800 text-sm">
-                        {projectData.map((data) => {
+                        {sortedProjectData.map((data) => {
                             const isProjectedAbove = data.projectedProfitPercentage >= 50;
                             const isActualAbove = data.actualProfitPercentage >= 50;
 
