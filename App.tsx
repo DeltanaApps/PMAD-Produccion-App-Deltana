@@ -596,7 +596,11 @@ const App: React.FC = () => {
                   readOnly={isPortfolioViewRole(currentUserRole)}
                   onNavigateToClient={handleNavigateToClient}
                   onNavigateToExternalTeam={handleNavigateToExternalTeam}
-                  onNavigateToInternalTeam={handleNavigateToInternalTeam}
+                  onNavigateToInternalTeam={
+                    (!isPortfolioViewRole(currentUserRole) || isAdministracionRole(currentUserRole))
+                      ? handleNavigateToInternalTeam
+                      : undefined
+                  }
                />;
       case 'planning':
         return <Planning projects={projects} />;
