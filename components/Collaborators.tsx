@@ -13,6 +13,8 @@ interface CollaboratorsProps {
   onUpdateCollaboratorName: (contact: string, newName: string) => void;
   projectManagers?: Record<string, { id: string; name: string }>;
   readOnly?: boolean;
+  focusProjectId?: string;
+  onClearFocus?: () => void;
 }
 
 const formatEuro = (amount: number) => (
@@ -320,7 +322,7 @@ const ProjectCollaboratorCard: React.FC<{ project: Project; collaborator: TeamMe
     );
 }
 
-const Collaborators: React.FC<CollaboratorsProps> = ({ projects, onSaveFinancials, onRemoveFromProject, onUpdateCollaboratorName, projectManagers, readOnly }) => {
+const Collaborators: React.FC<CollaboratorsProps> = ({ projects, onSaveFinancials, onRemoveFromProject, onUpdateCollaboratorName, projectManagers, readOnly, focusProjectId, onClearFocus }) => {
   const [selectedCollaborator, setSelectedCollaborator] = useState<string | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState('');
@@ -359,8 +361,12 @@ const Collaborators: React.FC<CollaboratorsProps> = ({ projects, onSaveFinancial
       });
     });
 
-    return Array.from(collaboratorMap.values()).sort((a,b) => a.member.name.localeCompare(b.member.name));
-  }, [filteredProjects]);
+    let result = Array.from(collaboratorMap.values()).sort((a,b) => a.member.name.localeCompare(b.member.name));
+    if (focusProjectId) {
+      result = result.filter(c => c.projects.some(p => p.id === focusProjectId));
+    }
+    return result;
+  }, [filteredProjects, focusProjectId]);
 
   if (collaborators.length > 0 && (!selectedCollaborator || !collaborators.some(c => c.member.contact === selectedCollaborator))) {
       setSelectedCollaborator(collaborators[0].member.contact);
@@ -431,6 +437,17 @@ const Collaborators: React.FC<CollaboratorsProps> = ({ projects, onSaveFinancial
             )}
           </div>
         </div>
+
+        {focusProjectId && (
+          <div className="bg-sky-900/30 border border-sky-700/50 text-sky-200 text-sm rounded-xl px-4 py-3 mb-6 flex items-center justify-between gap-3">
+            <span>Mostrando solo los recursos externos del proyecto seleccionado.</span>
+            {onClearFocus && (
+              <button onClick={onClearFocus} className="text-sky-300 hover:text-white font-bold underline">
+                Ver todos
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <aside className="md:col-span-1">

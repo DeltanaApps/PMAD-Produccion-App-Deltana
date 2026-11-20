@@ -12,6 +12,8 @@ interface InternalTeamProps {
   availableGlobalMembers?: TeamMember[];
   onUpdateInternalCost: (projectId: string, memberContact: string, costInfo: InternalCostInfo) => void;
   onUpdateProject?: (updatedProject: Project, newGlobalMembers?: TeamMember[]) => void | Promise<boolean>;
+  focusProjectId?: string;
+  onClearFocus?: () => void;
 }
 
 const formatEuro = (amount: number) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(amount);
@@ -900,8 +902,9 @@ const ProjectSection: React.FC<{
     availableGlobalMembers?: TeamMember[];
     onUpdateInternalCost: (projectId: string, memberContact: string, costInfo: InternalCostInfo) => void;
     onUpdateProject?: (updatedProject: Project, newGlobalMembers?: TeamMember[]) => void | Promise<boolean>;
-}> = ({ project, globalRates, availableGlobalMembers = [], onUpdateInternalCost, onUpdateProject }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
+    initiallyExpanded?: boolean;
+}> = ({ project, globalRates, availableGlobalMembers = [], onUpdateInternalCost, onUpdateProject, initiallyExpanded }) => {
+    const [isExpanded, setIsExpanded] = useState(!!initiallyExpanded);
     const [isProjectBreakdownModalOpen, setIsProjectBreakdownModalOpen] = useState(false);
     
     const internalMembers = project.team.filter(m => m.type === MemberType.Internal);
@@ -1397,7 +1400,7 @@ const ProjectSection: React.FC<{
     );
 };
 
-const InternalTeam: React.FC<InternalTeamProps> = ({ projects, globalRates, availableGlobalMembers = [], onUpdateInternalCost, onUpdateProject }) => {
+const InternalTeam: React.FC<InternalTeamProps> = ({ projects, globalRates, availableGlobalMembers = [], onUpdateInternalCost, onUpdateProject, focusProjectId, onClearFocus }) => {
   
   // Status Filter State
   const [selectedStatuses, setSelectedStatuses] = useState<ProjectStatus[]>([
@@ -1418,8 +1421,9 @@ const InternalTeam: React.FC<InternalTeamProps> = ({ projects, globalRates, avai
   };
 
   const filteredProjects = useMemo(() => {
+      if (focusProjectId) return projects.filter(p => p.id === focusProjectId);
       return projects.filter(p => selectedStatuses.includes(p.status));
-  }, [projects, selectedStatuses]);
+  }, [projects, selectedStatuses, focusProjectId]);
   
   // Handler for importing a multi-project Excel file with INCREMENTAL DE-DUPLICATION and smart member matching
   const handleMultiProjectFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1588,7 +1592,20 @@ const InternalTeam: React.FC<InternalTeamProps> = ({ projects, globalRates, avai
         </div>
       </div>
 
+      {/* Single-project focus banner (arrived via a shortcut from Mis Proyectos) */}
+      {focusProjectId && (
+          <div className="bg-sky-900/30 border border-sky-700/50 text-sky-200 text-sm rounded-xl px-4 py-3 mb-6 flex items-center justify-between gap-3">
+              <span>Mostrando solo el proyecto seleccionado.</span>
+              {onClearFocus && (
+                  <button onClick={onClearFocus} className="text-sky-300 hover:text-white font-bold underline">
+                      Ver todos los proyectos
+                  </button>
+              )}
+          </div>
+      )}
+
       {/* Filter Selector Bar */}
+      {!focusProjectId && (
       <div className="bg-gray-800/90 p-4 rounded-xl border border-gray-700 shadow-lg mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
               <div className="flex items-center gap-2">
@@ -1596,28 +1613,28 @@ const InternalTeam: React.FC<InternalTeamProps> = ({ projects, globalRates, avai
                   <span className="text-xs text-gray-400 font-mono">({filteredProjects.length} de {projects.length} mostrados)</span>
               </div>
               <div className="flex gap-2 text-xs">
-                  <button 
+                  <button
                       onClick={() => setSelectedStatuses([ProjectStatus.InProgress, ProjectStatus.Completed, ProjectStatus.Proposal])}
                       className="text-sky-400 hover:underline font-medium"
                   >
                       Mostrar Todos
                   </button>
                   <span className="text-gray-600">|</span>
-                  <button 
+                  <button
                       onClick={() => setSelectedStatuses([ProjectStatus.InProgress])}
                       className="text-gray-400 hover:text-white"
                   >
                       Solo en Proceso
                   </button>
                   <span className="text-gray-600">|</span>
-                  <button 
+                  <button
                       onClick={() => setSelectedStatuses([ProjectStatus.Completed])}
                       className="text-gray-400 hover:text-white"
                   >
                       Solo Finalizados
                   </button>
                   <span className="text-gray-600">|</span>
-                  <button 
+                  <button
                       onClick={() => setSelectedStatuses([ProjectStatus.Proposal])}
                       className="text-gray-400 hover:text-white"
                   >
@@ -1659,17 +1676,19 @@ const InternalTeam: React.FC<InternalTeamProps> = ({ projects, globalRates, avai
               })}
           </div>
       </div>
+      )}
 
       {/* Projects List */}
       <div className="space-y-4">
         {filteredProjects.map(project => (
-            <ProjectSection 
-                key={project.id} 
-                project={project} 
+            <ProjectSection
+                key={project.id}
+                project={project}
                 globalRates={globalRates}
                 availableGlobalMembers={availableGlobalMembers}
-                onUpdateInternalCost={onUpdateInternalCost} 
+                onUpdateInternalCost={onUpdateInternalCost}
                 onUpdateProject={onUpdateProject}
+                initiallyExpanded={project.id === focusProjectId}
             />
         ))}
         {filteredProjects.length === 0 && (

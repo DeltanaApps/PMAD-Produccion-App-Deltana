@@ -14,6 +14,9 @@ interface ProjectsProps {
   onViewProject?: (project: Project) => void;
   projectManagers?: Record<string, { id: string; name: string }>;
   readOnly?: boolean;
+  onNavigateToClient?: (project: Project) => void;
+  onNavigateToExternalTeam?: (project: Project) => void;
+  onNavigateToInternalTeam?: (project: Project) => void;
 }
 
 type ProjectTab = ProjectStatus | 'all';
@@ -65,7 +68,7 @@ const calculateTotalHours = (ranges: InternalWorkRange[]): number => {
 const formatEuro = (amount: number) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
 
 
-const Projects: React.FC<ProjectsProps> = ({ projects, internalRates, onAddProject, onEditProject, onViewProject, projectManagers, readOnly }) => {
+const Projects: React.FC<ProjectsProps> = ({ projects, internalRates, onAddProject, onEditProject, onViewProject, projectManagers, readOnly, onNavigateToClient, onNavigateToExternalTeam, onNavigateToInternalTeam }) => {
   const [activeTab, setActiveTab] = useState<ProjectTab>(ProjectStatus.InProgress);
   const [managerFilter, setManagerFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -312,7 +315,16 @@ const Projects: React.FC<ProjectsProps> = ({ projects, internalRates, onAddProje
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredProjects.length > 0 ? (
           filteredProjects.map(project => (
-            <ProjectCard key={project.id} project={project} onEdit={onEditProject} onView={onViewProject} readOnly={readOnly} />
+            <ProjectCard
+              key={project.id}
+              project={project}
+              onEdit={onEditProject}
+              onView={onViewProject}
+              readOnly={readOnly}
+              onNavigateToClient={onNavigateToClient}
+              onNavigateToExternalTeam={onNavigateToExternalTeam}
+              onNavigateToInternalTeam={onNavigateToInternalTeam}
+            />
           ))
         ) : (
           <p className="text-gray-400 col-span-full text-center py-10">No hay proyectos en esta categoría.</p>

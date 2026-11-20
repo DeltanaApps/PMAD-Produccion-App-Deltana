@@ -90,6 +90,38 @@ const App: React.FC = () => {
 
   const [currentView, setCurrentView] = useState<View>('dashboard');
 
+  // Carries a project/client id across a view switch so a shortcut from "Mis
+  // Proyectos" (e.g. "Rec. Internos" on a project card) can land already
+  // filtered to that project/client. Cleared on any ordinary Sidebar
+  // navigation (see navigateTo below) so it never leaks into a later,
+  // unrelated visit to the same screen.
+  const [focusProjectId, setFocusProjectId] = useState<string | null>(null);
+  const [focusClientName, setFocusClientName] = useState<string | null>(null);
+
+  const navigateTo = (view: View) => {
+    setFocusProjectId(null);
+    setFocusClientName(null);
+    setCurrentView(view);
+  };
+
+  const handleNavigateToClient = (project: Project) => {
+    setFocusProjectId(null);
+    setFocusClientName(project.client);
+    setCurrentView('clients');
+  };
+
+  const handleNavigateToInternalTeam = (project: Project) => {
+    setFocusClientName(null);
+    setFocusProjectId(project.id);
+    setCurrentView('internal-team');
+  };
+
+  const handleNavigateToExternalTeam = (project: Project) => {
+    setFocusClientName(null);
+    setFocusProjectId(project.id);
+    setCurrentView('collaborators');
+  };
+
   // Light/dark theme — applied via a data-theme attribute (see theme-light.css);
   // components/ itself is never touched, this only affects the app shell after
   // login (the Login screen has its own permanent light design).
@@ -562,6 +594,9 @@ const App: React.FC = () => {
                   onViewProject={handleOpenViewProjectModal}
                   projectManagers={projectManagers}
                   readOnly={isPortfolioViewRole(currentUserRole)}
+                  onNavigateToClient={handleNavigateToClient}
+                  onNavigateToExternalTeam={handleNavigateToExternalTeam}
+                  onNavigateToInternalTeam={handleNavigateToInternalTeam}
                />;
       case 'planning':
         return <Planning projects={projects} />;
@@ -588,6 +623,8 @@ const App: React.FC = () => {
             availableGlobalMembers={availableTeamMembers}
             onUpdateInternalCost={handleSaveInternalFinancials}
             onUpdateProject={handleUpdateProjectWithMembers}
+            focusProjectId={focusProjectId ?? undefined}
+            onClearFocus={() => setFocusProjectId(null)}
           />
         );
       case 'clients':
@@ -599,6 +636,7 @@ const App: React.FC = () => {
                   readOnly={isPortfolioViewRole(currentUserRole)}
                   orphanClients={orphanClients}
                   onDeleteOrphanClient={handleDeleteOrphanClient}
+                  initialSelectedClient={focusClientName ?? undefined}
                 />;
       case 'collaborators':
         return <Collaborators
@@ -608,6 +646,8 @@ const App: React.FC = () => {
                   onUpdateCollaboratorName={handleUpdateCollaboratorName}
                   projectManagers={projectManagers}
                   readOnly={isPortfolioViewRole(currentUserRole)}
+                  focusProjectId={focusProjectId ?? undefined}
+                  onClearFocus={() => setFocusProjectId(null)}
                 />;
       case 'economic-tracking':
         return <EconomicTracking projects={projects} globalRates={internalRates} projectManagers={projectManagers} />;
@@ -663,7 +703,7 @@ const App: React.FC = () => {
     <div className="flex min-h-screen bg-gray-900 text-gray-100 font-sans">
       <Sidebar
         currentView={currentView}
-        setCurrentView={setCurrentView}
+        setCurrentView={navigateTo}
         canViewExecutiveDashboard={isPortfolioViewRole(currentUserRole)}
         showInternalTeam={!isPortfolioViewRole(currentUserRole) || isAdministracionRole(currentUserRole)}
         isAdministracion={isAdministradorRole(currentUserRole)}

@@ -17,6 +17,7 @@ interface ClientsProps {
   readOnly?: boolean;
   orphanClients?: OrphanClient[];
   onDeleteOrphanClient?: (clientId: string) => Promise<void>;
+  initialSelectedClient?: string;
 }
 
 const formatEuro = (amount: number) => (
@@ -338,8 +339,8 @@ const ProjectFinancialsCard: React.FC<{project: Project; onEdit: () => void; rea
     )
 }
 
-const Clients: React.FC<ClientsProps> = ({ projects, onAddClient, onEditFinancials, projectManagers, readOnly, orphanClients, onDeleteOrphanClient }) => {
-  const [selectedClient, setSelectedClient] = useState<string | null>(null);
+const Clients: React.FC<ClientsProps> = ({ projects, onAddClient, onEditFinancials, projectManagers, readOnly, orphanClients, onDeleteOrphanClient, initialSelectedClient }) => {
+  const [selectedClient, setSelectedClient] = useState<string | null>(initialSelectedClient ?? null);
   const [managerFilter, setManagerFilter] = useState<string>('all');
 
   const handleDeleteOrphan = async (client: OrphanClient) => {

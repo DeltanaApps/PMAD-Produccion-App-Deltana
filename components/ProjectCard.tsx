@@ -3,13 +3,16 @@ import React from 'react';
 import type { Project } from '../types';
 import { ProjectStatus } from '../types';
 import Card from './ui/Card';
-import { MailIcon, EyeIcon } from './ui/Icons';
+import { MailIcon, EyeIcon, ClientsIcon, CollaboratorsIcon, BriefcaseIcon } from './ui/Icons';
 
 interface ProjectCardProps {
   project: Project;
   onEdit: (project: Project) => void;
   onView?: (project: Project) => void;
   readOnly?: boolean;
+  onNavigateToClient?: (project: Project) => void;
+  onNavigateToExternalTeam?: (project: Project) => void;
+  onNavigateToInternalTeam?: (project: Project) => void;
 }
 
 const EditIcon: React.FC<{className?: string}> = ({className}) => (
@@ -32,7 +35,7 @@ const statusBadgeStyles = {
 };
 
 
-const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onView, readOnly }) => {
+const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onView, readOnly, onNavigateToClient, onNavigateToExternalTeam, onNavigateToInternalTeam }) => {
   return (
     <Card className={`border-l-4 ${statusStyles[project.status]}`}>
       <div className="flex justify-between items-start">
@@ -63,7 +66,42 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onView, read
         </div>
       </div>
       <p className="text-sm text-gray-400 mb-4">{project.statusDetail}</p>
-      
+
+      {(onNavigateToClient || onNavigateToExternalTeam || onNavigateToInternalTeam) && (
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {onNavigateToClient && (
+            <button
+              onClick={() => onNavigateToClient(project)}
+              className="flex items-center gap-1 text-[11px] font-semibold text-gray-300 bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-gray-600 px-2 py-1 rounded-md transition-colors"
+              title={`Ver cliente ${project.client}`}
+            >
+              <ClientsIcon className="w-3.5 h-3.5" />
+              Cliente
+            </button>
+          )}
+          {onNavigateToExternalTeam && (
+            <button
+              onClick={() => onNavigateToExternalTeam(project)}
+              className="flex items-center gap-1 text-[11px] font-semibold text-gray-300 bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-gray-600 px-2 py-1 rounded-md transition-colors"
+              title="Ver Recursos Externos de este proyecto"
+            >
+              <CollaboratorsIcon className="w-3.5 h-3.5" />
+              Rec. Externos
+            </button>
+          )}
+          {onNavigateToInternalTeam && (
+            <button
+              onClick={() => onNavigateToInternalTeam(project)}
+              className="flex items-center gap-1 text-[11px] font-semibold text-gray-300 bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-gray-600 px-2 py-1 rounded-md transition-colors"
+              title="Ver Recursos Internos de este proyecto"
+            >
+              <BriefcaseIcon className="w-3.5 h-3.5" />
+              Rec. Internos
+            </button>
+          )}
+        </div>
+      )}
+
       <div>
         <h4 className="text-sm font-semibold text-gray-300 mb-2">Equipo:</h4>
         {project.team.length > 0 ? (
