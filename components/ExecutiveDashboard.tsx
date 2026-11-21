@@ -4,7 +4,7 @@ import type { Project } from '../types';
 import { ProjectStatus } from '../types';
 import Card from './ui/Card';
 import { TrendingUpIcon, DownloadIcon, TrophyIcon, MoneyIcon } from './ui/Icons';
-import { computePortfolioFinancials } from '../lib/economics';
+import { computePortfolioFinancials, type ProjectFinancials } from '../lib/economics';
 import { exportMonthlySummary } from '../lib/monthlyExport';
 
 interface ExecutiveDashboardProps {
@@ -37,9 +37,60 @@ const BUCKET_COLOR: Record<HealthBucket, string> = {
   sinPresupuesto: 'text-gray-400 border-gray-600/40 bg-gray-700/20',
 };
 
+const DrillDownModal: React.FC<{
+  title: string;
+  items: ProjectFinancials[];
+  projectManagers: Record<string, { id: string; name: string }>;
+  onClose: () => void;
+}> = ({ title, items, projectManagers, onClose }) => (
+  <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" onClick={onClose}>
+    <div className="bg-gray-800 rounded-xl max-w-3xl w-full border border-gray-700 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+      <div className="p-4 bg-gray-900 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
+        <h3 className="font-bold text-lg text-white">{title} <span className="text-sm text-gray-500 font-normal">({items.length})</span></h3>
+        <button onClick={onClose} className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition-colors">✕</button>
+      </div>
+      <div className="overflow-y-auto flex-1">
+        <table className="w-full text-sm text-left text-gray-400">
+          <thead className="text-xs text-gray-500 uppercase bg-gray-700/50 sticky top-0">
+            <tr>
+              <th className="px-4 py-3">Código</th>
+              <th className="px-4 py-3">Proyecto</th>
+              <th className="px-4 py-3">Cliente</th>
+              <th className="px-4 py-3">Gestor</th>
+              <th className="px-4 py-3 text-right">Presupuesto</th>
+              <th className="px-4 py-3 text-right">Margen Real</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((f) => (
+              <tr key={f.project.id} className="border-b border-gray-700 hover:bg-gray-800/50 transition-colors">
+                <td className="px-4 py-3 font-mono text-xs text-sky-400">{f.project.code}</td>
+                <td className="px-4 py-3 font-medium text-white">{f.project.name}</td>
+                <td className="px-4 py-3">{f.project.client}</td>
+                <td className="px-4 py-3">{projectManagers[f.project.id]?.name || 'Sin asignar'}</td>
+                <td className="px-4 py-3 text-right font-mono">{formatEuro(f.totalBudget)}</td>
+                <td className={`px-4 py-3 text-right font-mono font-bold ${f.actualProfitPercentage >= HEALTHY_THRESHOLD ? 'text-emerald-400' : f.actualProfitPercentage >= CRITICAL_THRESHOLD ? 'text-amber-400' : 'text-red-400'}`}>
+                  {f.actualProfitPercentage.toFixed(1)}%
+                </td>
+              </tr>
+            ))}
+            {items.length === 0 && (
+              <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-500">No hay proyectos en este grupo.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      <div className="p-4 bg-gray-900 border-t border-gray-700 flex justify-end flex-shrink-0">
+        <button onClick={onClose} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium text-sm transition-colors">Cerrar</button>
+      </div>
+    </div>
+  </div>
+);
+
 const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, internalRates, projectManagers, isAdministracion, pendingApprovalCount }) => {
   const [exportMonth, setExportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [managerFilter, setManagerFilter] = useState<string>('all');
+  const [drillDown, setDrillDown] = useState<{ title: string; items: ProjectFinancials[] } | null>(null);
 
   const managerOptions = useMemo(() => {
     const seen = new Map<string, string>();
@@ -80,11 +131,11 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
   }, [financials]);
 
   const healthBuckets = useMemo(() => {
-    const buckets: Record<HealthBucket, { count: number; budget: number }> = {
-      sano: { count: 0, budget: 0 },
-      atencion: { count: 0, budget: 0 },
-      critico: { count: 0, budget: 0 },
-      sinPresupuesto: { count: 0, budget: 0 },
+    const buckets: Record<HealthBucket, { count: number; budget: number; items: ProjectFinancials[] }> = {
+      sano: { count: 0, budget: 0, items: [] },
+      atencion: { count: 0, budget: 0, items: [] },
+      critico: { count: 0, budget: 0, items: [] },
+      sinPresupuesto: { count: 0, budget: 0, items: [] },
     };
     financials.forEach((f) => {
       let bucket: HealthBucket;
@@ -94,9 +145,15 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
       else bucket = 'sano';
       buckets[bucket].count += 1;
       buckets[bucket].budget += f.totalBudget;
+      buckets[bucket].items.push(f);
     });
     return buckets;
   }, [financials]);
+
+  const riskProjects = useMemo(
+    () => financials.filter((f) => f.totalBudget > 0 && f.actualProfitPercentage < HEALTHY_THRESHOLD),
+    [financials]
+  );
 
   const managerRanking = useMemo(() => {
     const byManager = new Map<
@@ -257,11 +314,17 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
           </p>
           <p className="text-xs text-gray-500 mt-1">Beneficio real / presupuesto total</p>
         </Card>
-        <Card className="border-l-4 border-red-500">
-          <p className="text-xs uppercase text-gray-400 font-bold tracking-wider">Proyectos en Riesgo</p>
-          <p className="text-2xl font-bold text-red-400 mt-2 font-mono">{kpis.enRiesgo}</p>
-          <p className="text-xs text-gray-500 mt-1">Margen real por debajo del {HEALTHY_THRESHOLD}%</p>
-        </Card>
+        <button
+          type="button"
+          onClick={() => setDrillDown({ title: 'Proyectos en Riesgo', items: riskProjects })}
+          className="text-left"
+        >
+          <Card className="border-l-4 border-red-500 hover:bg-gray-800/60 transition-colors cursor-pointer">
+            <p className="text-xs uppercase text-gray-400 font-bold tracking-wider">Proyectos en Riesgo</p>
+            <p className="text-2xl font-bold text-red-400 mt-2 font-mono">{kpis.enRiesgo}</p>
+            <p className="text-xs text-gray-500 mt-1">Margen real por debajo del {HEALTHY_THRESHOLD}% · clic para ver cuáles</p>
+          </Card>
+        </button>
       </div>
 
       {/* Health distribution */}
@@ -269,14 +332,28 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
         <h2 className="text-lg font-bold text-white mb-4">Salud del Portfolio</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {(Object.keys(BUCKET_LABEL) as HealthBucket[]).map((bucket) => (
-            <div key={bucket} className={`p-4 rounded-lg border ${BUCKET_COLOR[bucket]}`}>
+            <button
+              key={bucket}
+              type="button"
+              onClick={() => setDrillDown({ title: `Salud del Portfolio: ${BUCKET_LABEL[bucket]}`, items: healthBuckets[bucket].items })}
+              className={`text-left p-4 rounded-lg border hover:brightness-125 transition-all cursor-pointer ${BUCKET_COLOR[bucket]}`}
+            >
               <p className="text-xs uppercase font-bold tracking-wider opacity-80">{BUCKET_LABEL[bucket]}</p>
               <p className="text-2xl font-bold mt-1">{healthBuckets[bucket].count}</p>
               <p className="text-xs mt-1 opacity-70 font-mono">{formatEuro(healthBuckets[bucket].budget)}</p>
-            </div>
+            </button>
           ))}
         </div>
       </Card>
+
+      {drillDown && (
+        <DrillDownModal
+          title={drillDown.title}
+          items={drillDown.items}
+          projectManagers={projectManagers}
+          onClose={() => setDrillDown(null)}
+        />
+      )}
 
       {/* Top 5 Contracts */}
       <Card className="mb-8">
