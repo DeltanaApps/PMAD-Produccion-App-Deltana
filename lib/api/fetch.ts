@@ -124,6 +124,7 @@ interface ProjectRow {
   client: { name: string } | null;
   status: string;
   status_detail: string | null;
+  profitability_target: number | null;
   start_date: string | null;
   end_date: string | null;
   closing_email_sent: boolean;
@@ -146,7 +147,7 @@ interface ProjectRow {
 }
 
 const PROJECT_SELECT = `
-  id, code, name, export_name, client:clients(name), status, status_detail, start_date, end_date, closing_email_sent,
+  id, code, name, export_name, client:clients(name), status, status_detail, start_date, end_date, closing_email_sent, profitability_target,
   contacts:project_contacts(id, contact_group, name, email, phone, description),
   partial_deliveries:project_partial_deliveries(id, description, date, completed),
   client_agreement:project_client_agreement(amount, offer_url, contract_url),
@@ -328,6 +329,7 @@ const mapProject = (row: ProjectRow): Project => ({
   clientInfo: mapClientInfo(row),
   actualTimeTracking: mapActualTimeTracking(row),
   closingEmailSent: row.closing_email_sent,
+  profitabilityTarget: row.profitability_target ?? undefined,
   technicalContacts: row.contacts.filter((c) => c.contact_group === 'tecnico').map(mapContact),
   economicContacts: row.contacts.filter((c) => c.contact_group === 'economico').map(mapContact),
   generalContact: (() => {

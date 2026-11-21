@@ -46,7 +46,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [closingEmailSent, setClosingEmailSent] = useState(false);
-  
+  const [profitabilityTarget, setProfitabilityTarget] = useState('');
+
   // Contact Info State
   const [techContacts, setTechContacts] = useState<ContactInfo[]>([]);
   const [ecoContacts, setEcoContacts] = useState<ContactInfo[]>([]);
@@ -78,7 +79,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
       setTeam(project.team || []);
       setPartialDeliveries(project.partialDeliveries || []);
       setClosingEmailSent(project.closingEmailSent || false);
-      
+      setProfitabilityTarget(project.profitabilityTarget !== undefined ? String(project.profitabilityTarget) : '');
+
       // Load Contacts
       if (project.technicalContacts) {
           setTechContacts(project.technicalContacts);
@@ -114,7 +116,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
       setTeam([]);
       setPartialDeliveries([]);
       setClosingEmailSent(false);
-      
+      setProfitabilityTarget('');
+
       // Reset Contacts
       setTechContacts([]);
       setEcoContacts([]);
@@ -128,19 +131,25 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
         alert("El código, nombre del proyecto y el cliente son obligatorios.");
         return;
     }
-    onSave({ 
+    const trimmedTarget = profitabilityTarget.trim();
+    if (trimmedTarget !== '' && (isNaN(Number(trimmedTarget)) || Number(trimmedTarget) < 0 || Number(trimmedTarget) > 100)) {
+        alert("El umbral de rentabilidad personalizado debe ser un número entre 0 y 100.");
+        return;
+    }
+    onSave({
         code,
-        name, 
+        name,
         exportName,
-        client, 
-        status, 
-        statusDetail, 
+        client,
+        status,
+        statusDetail,
         startDate,
         endDate,
         partialDeliveries,
-        team, 
+        team,
         clientInfo: project?.clientInfo,
         closingEmailSent,
+        profitabilityTarget: trimmedTarget === '' ? undefined : Number(trimmedTarget),
         technicalContacts: techContacts,
         economicContacts: ecoContacts,
         generalContact: generalContact
@@ -326,6 +335,22 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
                     </div>
                     <Input label="Fecha Inicio" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
                     <Input label="Fecha Entrega Final" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                </div>
+
+                <div>
+                    <Input
+                        label="Umbral de Rentabilidad Personalizado (%)"
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={profitabilityTarget}
+                        onChange={(e) => setProfitabilityTarget(e.target.value)}
+                        placeholder="Vacío = usar el objetivo general de la app (50%)"
+                    />
+                    <p className="text-[11px] text-gray-500 mt-1">
+                        Deja este campo vacío para que el proyecto use el semáforo de rentabilidad general de la aplicación (50%). Rellénalo solo si este proyecto en concreto debe medirse contra otro objetivo.
+                    </p>
                 </div>
 
                 {/* Closing Email Check - Only visible if Completed */}

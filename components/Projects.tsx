@@ -21,6 +21,8 @@ interface ProjectsProps {
 
 type ProjectTab = ProjectStatus | 'all';
 
+const DEFAULT_PROFIT_TARGET = 50;
+
 // --- HELPER FUNCTIONS FOR CALCULATIONS (Synchronized with InternalTeam.tsx) ---
 
 // Parse date string (YYYY-MM-DD) to Local Date object
@@ -147,7 +149,8 @@ const Projects: React.FC<ProjectsProps> = ({ projects, internalRates, onAddProje
         const totalCost = projectExternalCost + projectInternalCost;
         const profit = projectIncome - totalCost;
         const margin = projectIncome > 0 ? (profit / projectIncome) * 100 : 0;
-        const isTargetMet = margin >= 50; // Target is 50% profit margin
+        const profitTarget = p.profitabilityTarget ?? DEFAULT_PROFIT_TARGET;
+        const isTargetMet = margin >= profitTarget;
 
         totalIncome += projectIncome;
         totalInternalCost += projectInternalCost;
@@ -163,7 +166,9 @@ const Projects: React.FC<ProjectsProps> = ({ projects, internalRates, onAddProje
             totalCost,
             profit,
             margin,
-            isTargetMet
+            isTargetMet,
+            profitTarget,
+            hasCustomTarget: p.profitabilityTarget !== undefined,
         };
     });
 
@@ -250,13 +255,13 @@ const Projects: React.FC<ProjectsProps> = ({ projects, internalRates, onAddProje
                         <p className="text-xs text-gray-400 uppercase tracking-wider">Pagos Colaboradores</p>
                         <p className="text-2xl font-bold text-white mt-1">{formatEuro(completedFinancials.totalExternalCost)}</p>
                    </Card>
-                   <Card className={`bg-gray-800 border-l-4 ${completedFinancials.globalMargin >= 50 ? 'border-green-500' : 'border-orange-500'}`}>
+                   <Card className={`bg-gray-800 border-l-4 ${completedFinancials.globalMargin >= DEFAULT_PROFIT_TARGET ? 'border-green-500' : 'border-orange-500'}`}>
                         <p className="text-xs text-gray-400 uppercase tracking-wider">Rentabilidad Global (Ponderada)</p>
                         <div className="flex items-end gap-2">
-                             <p className={`text-2xl font-bold ${completedFinancials.globalMargin >= 50 ? 'text-green-400' : 'text-orange-400'} mt-1`}>
+                             <p className={`text-2xl font-bold ${completedFinancials.globalMargin >= DEFAULT_PROFIT_TARGET ? 'text-green-400' : 'text-orange-400'} mt-1`}>
                                  {completedFinancials.globalMargin.toFixed(1)}%
                              </p>
-                             <span className="text-xs text-gray-500 mb-1">Objetivo: 50%</span>
+                             <span className="text-xs text-gray-500 mb-1">Objetivo: {DEFAULT_PROFIT_TARGET}%</span>
                         </div>
                    </Card>
               </div>
@@ -294,9 +299,12 @@ const Projects: React.FC<ProjectsProps> = ({ projects, internalRates, onAddProje
                                       <td className="px-6 py-3 text-right">{formatEuro(p.externalCost)}</td>
                                       <td className="px-6 py-3 text-right font-bold text-gray-200">{formatEuro(p.profit)}</td>
                                       <td className="px-6 py-3 text-center">
-                                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                              p.isTargetMet ? 'bg-green-900/50 text-green-400 border border-green-800' : 'bg-red-900/50 text-red-400 border border-red-800'
-                                          }`}>
+                                          <span
+                                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                  p.isTargetMet ? 'bg-green-900/50 text-green-400 border border-green-800' : 'bg-red-900/50 text-red-400 border border-red-800'
+                                              }`}
+                                              title={p.hasCustomTarget ? `Objetivo personalizado de este proyecto: ${p.profitTarget}%` : `Objetivo general: ${p.profitTarget}%`}
+                                          >
                                               {p.margin.toFixed(1)}%
                                           </span>
                                       </td>

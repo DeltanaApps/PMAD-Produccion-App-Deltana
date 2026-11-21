@@ -6,6 +6,8 @@ import { EyeIcon } from './ui/Icons';
 type SortKey = 'name' | 'budget' | 'internalProjected' | 'internalActual' | 'external' | 'profitProjected' | 'profitActual';
 type SortDirection = 'asc' | 'desc';
 
+const DEFAULT_PROFIT_TARGET = 50;
+
 interface EconomicTrackingProps {
   projects: Project[];
   globalRates: Record<string, number>;
@@ -406,7 +408,8 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
     };
 
     const renderTargetBreakdown = (data: any, isActual: boolean) => {
-        const targetProfit = data.totalBudget * 0.5;
+        const targetPercentage = data.project.profitabilityTarget ?? DEFAULT_PROFIT_TARGET;
+        const targetProfit = data.totalBudget * (targetPercentage / 100);
         const currentProfit = isActual ? data.actualProfit : data.projectedProfit;
         const currentPercentage = isActual ? data.actualProfitPercentage : data.projectedProfitPercentage;
         const diff = currentProfit - targetProfit;
@@ -425,7 +428,12 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
                         <p className="text-xs text-gray-500 mt-1">{currentPercentage.toFixed(1)}% del presupuesto</p>
                     </div>
                     <div className="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
-                        <p className="text-[10px] uppercase text-gray-500 font-bold mb-1">Objetivo Rentabilidad (50%)</p>
+                        <p className="text-[10px] uppercase text-gray-500 font-bold mb-1">
+                            Objetivo Rentabilidad ({targetPercentage}%)
+                            {data.project.profitabilityTarget !== undefined && (
+                                <span className="ml-1 normal-case font-normal text-sky-400" title="Umbral personalizado de este proyecto">· personalizado</span>
+                            )}
+                        </p>
                         <p className="text-xl font-bold font-mono text-white">
                             {formatEuro(targetProfit)}
                         </p>
@@ -442,9 +450,9 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
                         {formatEuro(Math.abs(diff))}
                     </p>
                     <p className="text-sm text-gray-400 mt-4 max-w-sm">
-                        {isAboveTarget 
-                            ? `El proyecto mantiene un alto margen de rentabilidad, superando el objetivo del 50% por ${formatEuro(diff)}.`
-                            : `El margen actual se encuentra ${formatEuro(Math.abs(diff))} por debajo del objetivo ideal del 50%.`
+                        {isAboveTarget
+                            ? `El proyecto mantiene un alto margen de rentabilidad, superando el objetivo del ${targetPercentage}% por ${formatEuro(diff)}.`
+                            : `El margen actual se encuentra ${formatEuro(Math.abs(diff))} por debajo del objetivo ideal del ${targetPercentage}%.`
                         }
                     </p>
                 </div>
@@ -511,8 +519,9 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
                     </thead>
                     <tbody className="divide-y divide-gray-800 text-sm">
                         {sortedProjectData.map((data) => {
-                            const isProjectedAbove = data.projectedProfitPercentage >= 50;
-                            const isActualAbove = data.actualProfitPercentage >= 50;
+                            const profitTarget = data.project.profitabilityTarget ?? DEFAULT_PROFIT_TARGET;
+                            const isProjectedAbove = data.projectedProfitPercentage >= profitTarget;
+                            const isActualAbove = data.actualProfitPercentage >= profitTarget;
 
                             return (
                                 <tr key={data.project.id} className="hover:bg-gray-800/40 transition-colors group">
@@ -520,7 +529,14 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
                                     <td className="py-4 px-4">
                                         <div className="flex flex-col">
                                             <span className="text-[10px] font-mono text-gray-500">{data.project.code}</span>
-                                            <span className="font-bold text-white group-hover:text-sky-400 transition-colors">{data.project.name}</span>
+                                            <span className="font-bold text-white group-hover:text-sky-400 transition-colors flex items-center gap-1.5">
+                                                {data.project.name}
+                                                {data.project.profitabilityTarget !== undefined && (
+                                                    <span className="text-[9px] font-mono font-normal px-1 py-0.5 rounded bg-sky-500/20 text-sky-400" title={`Umbral de rentabilidad personalizado: ${data.project.profitabilityTarget}%`}>
+                                                        {data.project.profitabilityTarget}%
+                                                    </span>
+                                                )}
+                                            </span>
                                         </div>
                                     </td>
 

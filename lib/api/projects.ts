@@ -291,6 +291,7 @@ async function upsertProjectCore(
     start_date: projectData.startDate || null,
     end_date: projectData.endDate || null,
     closing_email_sent: projectData.closingEmailSent ?? false,
+    profitability_target: projectData.profitabilityTarget ?? null,
   };
 
   if (!isNew) {

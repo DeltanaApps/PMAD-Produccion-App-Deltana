@@ -167,6 +167,7 @@ export interface Project {
   clientInfo?: ClientInfo;
   actualTimeTracking?: ActualTimeTrackingUpload; // Logged actual hours from time tracking Excel/CSV
   closingEmailSent?: boolean; // New field check
+  profitabilityTarget?: number; // Custom profitability threshold (%), overrides the app-wide default (50%) when set
   technicalContacts?: ContactInfo[];
   economicContacts?: ContactInfo[];
   generalContact?: ContactInfo;
