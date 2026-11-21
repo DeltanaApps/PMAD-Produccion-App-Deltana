@@ -47,6 +47,14 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
   const [endDate, setEndDate] = useState('');
   const [closingEmailSent, setClosingEmailSent] = useState(false);
   const [profitabilityTarget, setProfitabilityTarget] = useState('');
+  const [proposalCode, setProposalCode] = useState('');
+  const [proposalEstimateUrl, setProposalEstimateUrl] = useState('');
+
+  // Snapshot of the status this project had when the modal was opened (never
+  // changes during this session) so we can detect a Propuesta -> real-status
+  // transition and archive the old code exactly once per edit session.
+  const originalStatusRef = React.useRef<ProjectStatus | null>(project?.status ?? null);
+  const proposalTransitionHandledRef = React.useRef(false);
 
   // Contact Info State
   const [techContacts, setTechContacts] = useState<ContactInfo[]>([]);
@@ -80,6 +88,10 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
       setPartialDeliveries(project.partialDeliveries || []);
       setClosingEmailSent(project.closingEmailSent || false);
       setProfitabilityTarget(project.profitabilityTarget !== undefined ? String(project.profitabilityTarget) : '');
+      setProposalCode(project.proposalCode || '');
+      setProposalEstimateUrl(project.proposalEstimateUrl || '');
+      originalStatusRef.current = project.status;
+      proposalTransitionHandledRef.current = false;
 
       // Load Contacts
       if (project.technicalContacts) {
@@ -117,6 +129,10 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
       setPartialDeliveries([]);
       setClosingEmailSent(false);
       setProfitabilityTarget('');
+      setProposalCode('');
+      setProposalEstimateUrl('');
+      originalStatusRef.current = ProjectStatus.Proposal;
+      proposalTransitionHandledRef.current = false;
 
       // Reset Contacts
       setTechContacts([]);
@@ -125,10 +141,25 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
     }
   }, [project]);
 
+  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newStatus = e.target.value as ProjectStatus;
+    if (
+        originalStatusRef.current === ProjectStatus.Proposal &&
+        newStatus !== ProjectStatus.Proposal &&
+        !proposalTransitionHandledRef.current
+    ) {
+        proposalTransitionHandledRef.current = true;
+        setProposalCode(prev => prev || code);
+        setCode('');
+    }
+    setStatus(newStatus);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !client.trim() || !code.trim()) {
-        alert("El código, nombre del proyecto y el cliente son obligatorios.");
+        const codeLabel = status === ProjectStatus.Proposal ? 'código de propuesta' : 'código de proyecto';
+        alert(`El ${codeLabel}, nombre del proyecto y el cliente son obligatorios.`);
         return;
     }
     const trimmedTarget = profitabilityTarget.trim();
@@ -150,6 +181,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
         clientInfo: project?.clientInfo,
         closingEmailSent,
         profitabilityTarget: trimmedTarget === '' ? undefined : Number(trimmedTarget),
+        proposalCode: proposalCode.trim() || undefined,
+        proposalEstimateUrl: proposalEstimateUrl.trim() || undefined,
         technicalContacts: techContacts,
         economicContacts: ecoContacts,
         generalContact: generalContact
@@ -282,7 +315,16 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
                 
                 <div className="grid grid-cols-3 gap-3">
                      <div className="col-span-1">
-                        <Input label="Código" value={code} onChange={(e) => setCode(e.target.value)} placeholder="EJ: 25-001" required />
+                        <Input
+                            label={status === ProjectStatus.Proposal ? 'Código de Propuesta' : 'Código de Proyecto'}
+                            value={code}
+                            onChange={(e) => setCode(e.target.value)}
+                            placeholder="EJ: 25-001"
+                            required
+                        />
+                        {proposalCode && status !== ProjectStatus.Proposal && (
+                            <p className="text-[11px] text-gray-500 mt-1">Código de propuesta original: <span className="font-mono text-gray-400">{proposalCode}</span></p>
+                        )}
                      </div>
                      <div className="col-span-2">
                          <Input label="Nombre Resumido de Proyecto" value={name} onChange={(e) => setName(e.target.value)} required />
@@ -327,7 +369,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
                 <div className="grid grid-cols-2 gap-3">
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-1">Estado</label>
-                        <select value={status} onChange={(e) => setStatus(e.target.value as ProjectStatus)} className="w-full bg-gray-900 border border-gray-700 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+                        <select value={status} onChange={handleStatusChange} className="w-full bg-gray-900 border border-gray-700 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
                             {Object.values(ProjectStatus).map(s => (
                                 <option key={s} value={s}>{s}</option>
                             ))}
@@ -351,6 +393,15 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
                     <p className="text-[11px] text-gray-500 mt-1">
                         Deja este campo vacío para que el proyecto use el semáforo de rentabilidad general de la aplicación (50%). Rellénalo solo si este proyecto en concreto debe medirse contra otro objetivo.
                     </p>
+                </div>
+
+                <div>
+                    <Input
+                        label="Link Estimación de la Propuesta"
+                        value={proposalEstimateUrl}
+                        onChange={(e) => setProposalEstimateUrl(e.target.value)}
+                        placeholder="https://onedrive..."
+                    />
                 </div>
 
                 {/* Closing Email Check - Only visible if Completed */}

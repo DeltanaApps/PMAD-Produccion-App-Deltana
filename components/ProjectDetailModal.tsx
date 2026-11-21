@@ -78,6 +78,15 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ project, intern
             </div>
             <h2 className="text-2xl font-bold text-white">{project.name}</h2>
             {managerName && <p className="text-xs text-gray-400 mt-1">Gestor: <span className="text-sky-400 font-medium">{managerName}</span></p>}
+            {(project.proposalCode || project.proposalEstimateUrl) && (
+              <p className="text-xs text-gray-500 mt-1">
+                {project.proposalCode && <>Código de propuesta original: <span className="font-mono text-gray-400">{project.proposalCode}</span></>}
+                {project.proposalCode && project.proposalEstimateUrl && ' · '}
+                {project.proposalEstimateUrl && (
+                  <a href={project.proposalEstimateUrl} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:underline">Ver estimación</a>
+                )}
+              </p>
+            )}
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700 transition-colors">
             <CloseIcon className="h-6 w-6" />

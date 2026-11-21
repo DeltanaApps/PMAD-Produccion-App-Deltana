@@ -168,6 +168,8 @@ export interface Project {
   actualTimeTracking?: ActualTimeTrackingUpload; // Logged actual hours from time tracking Excel/CSV
   closingEmailSent?: boolean; // New field check
   profitabilityTarget?: number; // Custom profitability threshold (%), overrides the app-wide default (50%) when set
+  proposalCode?: string; // Archived code the project used while it was still a Proposal
+  proposalEstimateUrl?: string; // Link to the proposal's estimate/budget document
   technicalContacts?: ContactInfo[];
   economicContacts?: ContactInfo[];
   generalContact?: ContactInfo;

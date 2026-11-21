@@ -292,6 +292,8 @@ async function upsertProjectCore(
     end_date: projectData.endDate || null,
     closing_email_sent: projectData.closingEmailSent ?? false,
     profitability_target: projectData.profitabilityTarget ?? null,
+    proposal_code: projectData.proposalCode ?? null,
+    proposal_estimate_url: projectData.proposalEstimateUrl ?? null,
   };
 
   if (!isNew) {
