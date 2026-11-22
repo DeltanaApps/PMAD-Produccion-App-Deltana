@@ -117,8 +117,21 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
         project: Project
     } | null>(null);
     const [managerFilter, setManagerFilter] = useState<string>('all');
-    const [statusFilter, setStatusFilter] = useState<'all' | ProjectStatus.InProgress | ProjectStatus.Completed>('all');
+    const [selectedStatuses, setSelectedStatuses] = useState<ProjectStatus[]>([
+        ProjectStatus.InProgress,
+        ProjectStatus.Completed,
+    ]);
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection } | null>(null);
+
+    const toggleStatus = (status: ProjectStatus) => {
+        setSelectedStatuses(prev => {
+            if (prev.includes(status)) {
+                if (prev.length === 1) return prev;
+                return prev.filter(s => s !== status);
+            }
+            return [...prev, status];
+        });
+    };
 
     const toggleSort = (key: SortKey) => {
         setSortConfig(prev => {
@@ -140,8 +153,7 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
 
     const projectData = useMemo(() => {
         return projects
-            .filter(project => project.status !== ProjectStatus.Proposal)
-            .filter(project => statusFilter === 'all' || project.status === statusFilter)
+            .filter(project => selectedStatuses.includes(project.status))
             .filter(project => managerFilter === 'all' || projectManagers?.[project.id]?.id === managerFilter)
             .map(project => {
             // 1. Total Budget
@@ -219,7 +231,7 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
                 hasActualTracking: Boolean(project.actualTimeTracking)
             };
         });
-    }, [projects, globalRates, projectManagers, managerFilter, statusFilter]);
+    }, [projects, globalRates, projectManagers, managerFilter, selectedStatuses]);
 
     const sortedProjectData = useMemo(() => {
         if (!sortConfig) return projectData;
@@ -468,7 +480,7 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
 
     return (
         <div className="animate-fade-in">
-            <div className="mb-8 flex justify-between items-start gap-4">
+            <div className="mb-6 flex justify-between items-start gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-white flex items-center gap-3">
                         Seguimiento Económico y Rentabilidad
@@ -477,30 +489,89 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
                         Análisis comparativo de rentabilidad. Evalúa el <strong>Gasto Interno Proyectado</strong> frente al <strong>Gasto Interno Real (de fichajes)</strong>, y el impacto sobre el beneficio del proyecto.
                     </p>
                 </div>
-                <div className="flex gap-2 flex-shrink-0">
+                {managerOptions.length > 0 && (
                     <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value as any)}
-                        className="bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
-                        title="Filtrar por estado"
+                        value={managerFilter}
+                        onChange={(e) => setManagerFilter(e.target.value)}
+                        className="bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 flex-shrink-0"
+                        title="Filtrar por gestor"
                     >
-                        <option value="all">Todos los estados</option>
-                        <option value={ProjectStatus.InProgress}>{ProjectStatus.InProgress}</option>
-                        <option value={ProjectStatus.Completed}>{ProjectStatus.Completed}</option>
+                        <option value="all">Todos los gestores</option>
+                        {managerOptions.map(([id, name]) => (
+                            <option key={id} value={id}>{name}</option>
+                        ))}
                     </select>
-                    {managerOptions.length > 0 && (
-                        <select
-                            value={managerFilter}
-                            onChange={(e) => setManagerFilter(e.target.value)}
-                            className="bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
-                            title="Filtrar por gestor"
+                )}
+            </div>
+
+            <div className="bg-gray-800/90 p-4 rounded-xl border border-gray-700 shadow-lg mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold uppercase text-gray-300 tracking-wider">Filtrar por Estado de Proyecto:</span>
+                        <span className="text-xs text-gray-400 font-mono">({projectData.length} de {projects.length} mostrados)</span>
+                    </div>
+                    <div className="flex gap-2 text-xs">
+                        <button
+                            onClick={() => setSelectedStatuses([ProjectStatus.InProgress, ProjectStatus.Completed, ProjectStatus.Proposal])}
+                            className="text-sky-400 hover:underline font-medium"
                         >
-                            <option value="all">Todos los gestores</option>
-                            {managerOptions.map(([id, name]) => (
-                                <option key={id} value={id}>{name}</option>
-                            ))}
-                        </select>
-                    )}
+                            Mostrar Todos
+                        </button>
+                        <span className="text-gray-600">|</span>
+                        <button
+                            onClick={() => setSelectedStatuses([ProjectStatus.InProgress])}
+                            className="text-gray-400 hover:text-white"
+                        >
+                            Solo en Proceso
+                        </button>
+                        <span className="text-gray-600">|</span>
+                        <button
+                            onClick={() => setSelectedStatuses([ProjectStatus.Completed])}
+                            className="text-gray-400 hover:text-white"
+                        >
+                            Solo Finalizados
+                        </button>
+                        <span className="text-gray-600">|</span>
+                        <button
+                            onClick={() => setSelectedStatuses([ProjectStatus.Proposal])}
+                            className="text-gray-400 hover:text-white"
+                        >
+                            Solo Propuestas
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2.5">
+                    {[
+                        { status: ProjectStatus.InProgress, label: 'Proyectos en Proceso', color: 'sky' },
+                        { status: ProjectStatus.Completed, label: 'Proyectos Finalizados', color: 'green' },
+                        { status: ProjectStatus.Proposal, label: 'Propuestas', color: 'amber' },
+                    ].map(item => {
+                        const isSelected = selectedStatuses.includes(item.status);
+                        const count = projects.filter(p => p.status === item.status).length;
+
+                        return (
+                            <button
+                                key={item.status}
+                                onClick={() => toggleStatus(item.status)}
+                                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold border transition-all ${
+                                    isSelected
+                                        ? item.color === 'sky' ? 'bg-sky-600/90 text-white border-sky-400 shadow-md shadow-sky-900/30' :
+                                          item.color === 'green' ? 'bg-emerald-600/90 text-white border-emerald-400 shadow-md shadow-emerald-900/30' :
+                                          'bg-amber-600/90 text-white border-amber-400 shadow-md shadow-amber-900/30'
+                                        : 'bg-gray-900/60 text-gray-400 border-gray-700 hover:border-gray-500 hover:text-gray-200'
+                                }`}
+                            >
+                                <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : 'bg-gray-500'}`}></span>
+                                <span>{item.label}</span>
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                                    isSelected ? 'bg-black/30 text-white' : 'bg-gray-800 text-gray-400'
+                                }`}>
+                                    {count}
+                                </span>
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
