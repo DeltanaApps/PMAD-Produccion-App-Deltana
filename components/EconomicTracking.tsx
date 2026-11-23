@@ -8,6 +8,18 @@ type SortDirection = 'asc' | 'desc';
 
 const DEFAULT_PROFIT_TARGET = 50;
 
+// Project codes follow AA-###-PAI (year-correlative-country). Sorting must
+// go by year first and correlative second, ignoring the trailing country
+// code entirely -- the correlative is assigned progressively within each
+// year, so this reconstructs true chronological creation order.
+const parseProjectCodeForSort = (code: string): number => {
+    const match = code.match(/^(\d+)-(\d+)/);
+    if (!match) return 0;
+    const year = parseInt(match[1], 10);
+    const correlative = parseInt(match[2], 10);
+    return year * 100000 + correlative;
+};
+
 interface EconomicTrackingProps {
   projects: Project[];
   globalRates: Record<string, number>;
@@ -239,7 +251,7 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
         const dir = direction === 'asc' ? 1 : -1;
         const getValue = (d: typeof projectData[number]) => {
             switch (key) {
-                case 'name': return d.project.name.toLowerCase();
+                case 'name': return parseProjectCodeForSort(d.project.code);
                 case 'budget': return d.totalBudget;
                 case 'internalProjected': return d.projectedInternalCosts;
                 case 'internalActual': return d.actualInternalCosts;
