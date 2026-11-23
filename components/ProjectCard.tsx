@@ -3,7 +3,7 @@ import React from 'react';
 import type { Project } from '../types';
 import { ProjectStatus } from '../types';
 import Card from './ui/Card';
-import { MailIcon, EyeIcon, ClientsIcon, CollaboratorsIcon, BriefcaseIcon } from './ui/Icons';
+import { MailIcon, EyeIcon, ClientsIcon, CollaboratorsIcon, BriefcaseIcon, LinkIcon } from './ui/Icons';
 
 interface ProjectCardProps {
   project: Project;
@@ -67,7 +67,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onView, read
       </div>
       <p className="text-sm text-gray-400 mb-4">{project.statusDetail}</p>
 
-      {(onNavigateToClient || onNavigateToExternalTeam || onNavigateToInternalTeam) && (
+      {(onNavigateToClient || onNavigateToExternalTeam || onNavigateToInternalTeam || project.proposalEstimateUrl) && (
         <div className="flex flex-wrap gap-1.5 mb-4">
           {onNavigateToClient && (
             <button
@@ -98,6 +98,18 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onView, read
               <BriefcaseIcon className="w-3.5 h-3.5" />
               Rec. Internos
             </button>
+          )}
+          {project.proposalEstimateUrl && (
+            <a
+              href={project.proposalEstimateUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-[11px] font-semibold text-gray-300 bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-gray-600 px-2 py-1 rounded-md transition-colors"
+              title="Ver estimación de la propuesta"
+            >
+              <LinkIcon className="w-3.5 h-3.5" />
+              Estimación
+            </a>
           )}
         </div>
       )}
