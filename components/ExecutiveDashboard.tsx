@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import type { Project } from '../types';
-import { ProjectStatus } from '../types';
+import { ProjectStatus, MemberType } from '../types';
 import Card from './ui/Card';
 import { TrendingUpIcon, DownloadIcon, TrophyIcon, MoneyIcon } from './ui/Icons';
 import { computePortfolioFinancials, type ProjectFinancials } from '../lib/economics';
@@ -87,10 +87,78 @@ const DrillDownModal: React.FC<{
   </div>
 );
 
+interface MonthForecastItem {
+  category: 'cliente' | 'externo';
+  projectCode: string;
+  projectName: string;
+  description: string;
+  amount: number;
+  date: string;
+}
+
+const MonthBreakdownModal: React.FC<{
+  label: string;
+  items: MonthForecastItem[];
+  clientTotal: number;
+  externalTotal: number;
+  includeClients: boolean;
+  includeExternals: boolean;
+  onClose: () => void;
+}> = ({ label, items, clientTotal, externalTotal, includeClients, includeExternals, onClose }) => {
+  const clientItems = items.filter((i) => i.category === 'cliente');
+  const externalItems = items.filter((i) => i.category === 'externo');
+  const shownTotal = (includeClients ? clientTotal : 0) + (includeExternals ? externalTotal : 0);
+
+  const renderGroup = (title: string, groupItems: MonthForecastItem[], total: number, colorClass: string) => (
+    <div>
+      <h4 className={`text-sm font-bold mb-2 ${colorClass}`}>{title} <span className="text-gray-500 font-normal">({formatEuro(total)})</span></h4>
+      {groupItems.length === 0 ? (
+        <p className="text-xs text-gray-500 italic">Sin registros este mes.</p>
+      ) : (
+        <table className="w-full text-sm text-left text-gray-400">
+          <tbody>
+            {groupItems.map((it, idx) => (
+              <tr key={idx} className="border-b border-gray-700/50">
+                <td className="py-2 pr-3">
+                  <span className="font-mono text-xs text-sky-400">{it.projectCode}</span>{' '}
+                  <span className="text-white">{it.projectName}</span>
+                  <p className="text-xs text-gray-500">{it.description}</p>
+                </td>
+                <td className="py-2 pl-3 text-right font-mono whitespace-nowrap">{formatEuro(it.amount)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" onClick={onClose}>
+      <div className="bg-gray-800 rounded-xl max-w-2xl w-full border border-gray-700 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+        <div className="p-4 bg-gray-900 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
+          <h3 className="font-bold text-lg text-white">Desglose de {label} <span className="text-sm text-gray-500 font-normal">({formatEuro(shownTotal)})</span></h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition-colors">✕</button>
+        </div>
+        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+          {renderGroup('Facturas a Cliente', clientItems, clientTotal, 'text-emerald-400')}
+          {renderGroup('Pagos a Externos', externalItems, externalTotal, 'text-amber-400')}
+        </div>
+        <div className="p-4 bg-gray-900 border-t border-gray-700 flex justify-end flex-shrink-0">
+          <button onClick={onClose} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium text-sm transition-colors">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, internalRates, projectManagers, isAdministracion, pendingApprovalCount }) => {
   const [exportMonth, setExportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [managerFilter, setManagerFilter] = useState<string>('all');
   const [drillDown, setDrillDown] = useState<{ title: string; items: ProjectFinancials[] } | null>(null);
+  const [includeClients, setIncludeClients] = useState(true);
+  const [includeExternals, setIncludeExternals] = useState(true);
+  const [monthDrillDown, setMonthDrillDown] = useState<{ label: string; items: MonthForecastItem[]; clientTotal: number; externalTotal: number } | null>(null);
 
   const managerOptions = useMemo(() => {
     const seen = new Map<string, string>();
@@ -188,14 +256,14 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
       .sort((a, b) => a.marginPercentage - b.marginPercentage);
   }, [financials, projectManagers]);
 
-  const cashflowForecast = useMemo(() => {
+  const cashflowForecastRaw = useMemo(() => {
     const now = new Date();
-    const months: { key: string; label: string; amount: number }[] = [];
+    const months: { key: string; label: string; clientTotal: number; externalTotal: number; items: MonthForecastItem[] }[] = [];
     for (let i = 0; i < 6; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const label = d.toLocaleDateString('es-ES', { month: 'short', year: '2-digit' });
-      months.push({ key, label, amount: 0 });
+      months.push({ key, label, clientTotal: 0, externalTotal: 0, items: [] });
     }
     const monthIndex = new Map(months.map((m, i) => [m.key, i]));
 
@@ -204,14 +272,46 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
         if (!pi.date) return;
         const key = pi.date.slice(0, 7);
         const idx = monthIndex.get(key);
-        if (idx !== undefined) {
-          months[idx].amount += pi.amount;
-        }
+        if (idx === undefined) return;
+        months[idx].clientTotal += pi.amount;
+        months[idx].items.push({
+          category: 'cliente',
+          projectCode: p.code,
+          projectName: p.name,
+          description: pi.description || 'Factura planificada',
+          amount: pi.amount,
+          date: pi.date,
+        });
+      });
+
+      p.team.filter((m) => m.type === MemberType.External).forEach((m) => {
+        (m.collaboratorInfo?.plannedInvoices || []).forEach((pi) => {
+          if (!pi.date) return;
+          const key = pi.date.slice(0, 7);
+          const idx = monthIndex.get(key);
+          if (idx === undefined) return;
+          months[idx].externalTotal += pi.amount;
+          months[idx].items.push({
+            category: 'externo',
+            projectCode: p.code,
+            projectName: p.name,
+            description: `${m.name} — ${pi.description || 'Pago planificado'}`,
+            amount: pi.amount,
+            date: pi.date,
+          });
+        });
       });
     });
 
     return months;
   }, [filteredProjects]);
+
+  const cashflowForecast = useMemo(() => {
+    return cashflowForecastRaw.map((m) => ({
+      ...m,
+      amount: (includeClients ? m.clientTotal : 0) + (includeExternals ? m.externalTotal : 0),
+    }));
+  }, [cashflowForecastRaw, includeClients, includeExternals]);
 
   const handleDownloadPdf = () => {
     window.print();
@@ -452,10 +552,22 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
 
         {/* Cashflow forecast */}
         <Card>
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <MoneyIcon className="h-5 w-5 text-sky-400" />
-            Previsión de Facturación (6 meses)
-          </h2>
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <MoneyIcon className="h-5 w-5 text-sky-400" />
+              Previsión de Facturación (6 meses)
+            </h2>
+            <div className="flex items-center gap-4 text-xs print:hidden">
+              <label className="flex items-center gap-1.5 text-emerald-400 cursor-pointer select-none">
+                <input type="checkbox" checked={includeClients} onChange={(e) => setIncludeClients(e.target.checked)} className="accent-emerald-500" />
+                Clientes
+              </label>
+              <label className="flex items-center gap-1.5 text-amber-400 cursor-pointer select-none">
+                <input type="checkbox" checked={includeExternals} onChange={(e) => setIncludeExternals(e.target.checked)} className="accent-amber-500" />
+                Externos
+              </label>
+            </div>
+          </div>
           <div className="h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={cashflowForecast} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
@@ -468,13 +580,31 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
                   formatter={(value: number) => [formatEuro(value), 'Previsto']}
                   labelStyle={{ color: '#fff', marginBottom: '0.5rem' }}
                 />
-                <Bar dataKey="amount" radius={[4, 4, 0, 0]} fill="#38bdf8" />
+                <Bar
+                  dataKey="amount"
+                  radius={[4, 4, 0, 0]}
+                  fill="#38bdf8"
+                  cursor="pointer"
+                  onClick={(data: any) => setMonthDrillDown({ label: data.label, items: data.items, clientTotal: data.clientTotal, externalTotal: data.externalTotal })}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <p className="text-center text-xs text-gray-500 mt-2">Facturas planificadas por mes, de todos los proyectos</p>
+          <p className="text-center text-xs text-gray-500 mt-2">Facturas planificadas por mes, de todos los proyectos — clic en una barra para ver el desglose</p>
         </Card>
       </div>
+
+      {monthDrillDown && (
+        <MonthBreakdownModal
+          label={monthDrillDown.label}
+          items={monthDrillDown.items}
+          clientTotal={monthDrillDown.clientTotal}
+          externalTotal={monthDrillDown.externalTotal}
+          includeClients={includeClients}
+          includeExternals={includeExternals}
+          onClose={() => setMonthDrillDown(null)}
+        />
+      )}
 
       <style>{`
         @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
