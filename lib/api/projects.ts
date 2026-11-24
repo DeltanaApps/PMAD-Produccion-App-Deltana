@@ -3,6 +3,7 @@ import type {
   Project,
   TeamMember,
   ClientInfo,
+  ClientContact,
   CollaboratorInfo,
   InternalCostInfo,
 } from '../../types';
@@ -200,26 +201,46 @@ async function syncProjectRoster(projectId: string, team: TeamMember[]): Promise
   }
 }
 
-async function syncProjectContacts(
-  projectId: string,
-  project: Pick<Project, 'technicalContacts' | 'economicContacts' | 'generalContact'>
-): Promise<void> {
-  const rows = [
-    ...(project.technicalContacts ?? []).map((c) => ({ ...c, contact_group: 'tecnico' as const })),
-    ...(project.economicContacts ?? []).map((c) => ({ ...c, contact_group: 'economico' as const })),
-    ...(project.generalContact && project.generalContact.name
-      ? [{ ...project.generalContact, contact_group: 'general' as const }]
-      : []),
-  ].map((c) => ({
+async function syncProjectContacts(projectId: string, contacts: Project['contacts']): Promise<void> {
+  const rows = (contacts ?? []).map((c) => ({
     project_id: projectId,
-    contact_group: c.contact_group,
-    name: c.name,
-    email: c.email || null,
-    phone: c.phone || null,
-    description: c.description || null,
+    client_contact_id: c.clientContactId,
+    role_label: c.roleLabel,
   }));
 
   await replaceRows('project_contacts', 'project_id', projectId, rows);
+}
+
+// Creates a new shared ficha for a person at the given client (creating the
+// client too, the first time), so it can be reused by any gestor on any
+// other project with that same client from now on -- same spirit as
+// findOrCreateClientId above, but for the person, not the company.
+export async function createClientContact(
+  clientName: string,
+  contact: { name: string; email: string; phone: string; description?: string },
+  createdBy: string
+): Promise<ClientContact> {
+  const clientId = await findOrCreateClientId(clientName, createdBy);
+  const { data, error } = await supabase
+    .from('client_contacts')
+    .insert({
+      client_id: clientId,
+      name: contact.name.trim(),
+      email: contact.email.trim() || null,
+      phone: contact.phone.trim() || null,
+      description: contact.description?.trim() || null,
+      created_by: createdBy,
+    })
+    .select('id, name, email, phone, description')
+    .single();
+  if (error) throw error;
+  return {
+    id: data.id,
+    name: data.name,
+    email: data.email ?? '',
+    phone: data.phone ?? '',
+    description: data.description ?? undefined,
+  };
 }
 
 async function syncPartialDeliveries(projectId: string, deliveries: Project['partialDeliveries']): Promise<void> {
@@ -319,7 +340,7 @@ export async function saveProject(
   managerId: string
 ): Promise<void> {
   await upsertProjectCore(projectId, isNew, projectData, managerId);
-  await syncProjectContacts(projectId, projectData);
+  await syncProjectContacts(projectId, projectData.contacts);
   await syncPartialDeliveries(projectId, projectData.partialDeliveries);
   await syncProjectRoster(projectId, projectData.team);
 }

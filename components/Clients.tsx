@@ -119,33 +119,11 @@ const ProjectFinancialsCard: React.FC<{project: Project; onEdit: () => void; rea
                     </div>
 
                     {/* Contact Info Display */}
-                    {(project.generalContact?.name || (project.technicalContacts && project.technicalContacts.length > 0) || (project.economicContacts && project.economicContacts.length > 0)) && (
+                    {project.contacts && project.contacts.length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-y-4 gap-x-8 text-xs text-gray-400 bg-gray-800/30 p-3 rounded border border-gray-700/30 inline-flex">
-                            {project.generalContact?.name && (
-                                <div className="flex flex-col min-w-[150px]">
-                                    <span className="font-bold text-sky-400 uppercase tracking-wider text-[10px] mb-1">Resp. General</span>
-                                    <span className="text-white font-medium">{project.generalContact.name}</span>
-                                    {project.generalContact.email && <span>{project.generalContact.email}</span>}
-                                    {project.generalContact.phone && <span>{project.generalContact.phone}</span>}
-                                    {project.generalContact.description && <span className="italic text-gray-500 mt-0.5">{project.generalContact.description}</span>}
-                                </div>
-                            )}
-                            {project.technicalContacts?.map((c, idx) => (
-                                <div key={`tech-${idx}`} className="flex flex-col min-w-[150px]">
-                                    <span className="font-bold text-sky-500 uppercase tracking-wider text-[10px] mb-1">
-                                        Resp. Técnico {project.technicalContacts!.length > 1 ? idx + 1 : ''}
-                                    </span>
-                                    <span className="text-white font-medium">{c.name}</span>
-                                    {c.email && <span>{c.email}</span>}
-                                    {c.phone && <span>{c.phone}</span>}
-                                    {c.description && <span className="italic text-gray-500 mt-0.5">{c.description}</span>}
-                                </div>
-                            ))}
-                            {project.economicContacts?.map((c, idx) => (
-                                <div key={`eco-${idx}`} className="flex flex-col min-w-[150px]">
-                                    <span className="font-bold text-green-500 uppercase tracking-wider text-[10px] mb-1">
-                                        Resp. Económico {project.economicContacts!.length > 1 ? idx + 1 : ''}
-                                    </span>
+                            {project.contacts.map((c) => (
+                                <div key={c.clientContactId} className="flex flex-col min-w-[150px]">
+                                    <span className="font-bold text-sky-400 uppercase tracking-wider text-[10px] mb-1">{c.roleLabel}</span>
                                     <span className="text-white font-medium">{c.name}</span>
                                     {c.email && <span>{c.email}</span>}
                                     {c.phone && <span>{c.phone}</span>}

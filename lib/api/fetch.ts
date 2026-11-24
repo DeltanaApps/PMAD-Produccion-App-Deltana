@@ -5,7 +5,8 @@ import type {
   InternalWorkRange,
   PartialDelivery,
   CollaboratorPartialDelivery,
-  ContactInfo,
+  ClientContact,
+  ProjectContact,
   ClientInfo,
   ActualTimeTrackingUpload,
 } from '../../types';
@@ -27,11 +28,9 @@ interface PartialDeliveryRow {
 
 interface ContactRow {
   id: string;
-  contact_group: 'tecnico' | 'economico' | 'general';
-  name: string;
-  email: string | null;
-  phone: string | null;
-  description: string | null;
+  role_label: string;
+  client_contact_id: string;
+  client_contact: { name: string; email: string | null; phone: string | null; description: string | null } | null;
 }
 
 interface WorkRangeDeliveryRow extends PartialDeliveryRow {}
@@ -150,7 +149,7 @@ interface ProjectRow {
 
 const PROJECT_SELECT = `
   id, code, name, export_name, client:clients(name), status, status_detail, start_date, end_date, closing_email_sent, profitability_target, proposal_code, proposal_estimate_url,
-  contacts:project_contacts(id, contact_group, name, email, phone, description),
+  contacts:project_contacts(id, role_label, client_contact_id, client_contact:client_contacts(name, email, phone, description)),
   partial_deliveries:project_partial_deliveries(id, description, date, completed),
   client_agreement:project_client_agreement(amount, offer_url, contract_url),
   client_additionals:project_client_additionals(id, description, amount, url),
@@ -188,11 +187,13 @@ const mapCollaboratorPartialDelivery = (row: PartialDeliveryRow): CollaboratorPa
   completed: row.completed,
 });
 
-const mapContact = (row: ContactRow): ContactInfo => ({
-  name: row.name,
-  email: row.email ?? '',
-  phone: row.phone ?? '',
-  description: row.description ?? undefined,
+const mapContact = (row: ContactRow): ProjectContact => ({
+  clientContactId: row.client_contact_id,
+  roleLabel: row.role_label,
+  name: row.client_contact?.name ?? '',
+  email: row.client_contact?.email ?? '',
+  phone: row.client_contact?.phone ?? '',
+  description: row.client_contact?.description ?? undefined,
 });
 
 const mapWorkRange = (row: WorkRangeRow): InternalWorkRange => ({
@@ -334,12 +335,7 @@ const mapProject = (row: ProjectRow): Project => ({
   profitabilityTarget: row.profitability_target ?? undefined,
   proposalCode: row.proposal_code ?? undefined,
   proposalEstimateUrl: row.proposal_estimate_url ?? undefined,
-  technicalContacts: row.contacts.filter((c) => c.contact_group === 'tecnico').map(mapContact),
-  economicContacts: row.contacts.filter((c) => c.contact_group === 'economico').map(mapContact),
-  generalContact: (() => {
-    const gc = row.contacts.find((c) => c.contact_group === 'general');
-    return gc ? mapContact(gc) : undefined;
-  })(),
+  contacts: row.contacts.map(mapContact),
 });
 
 export async function fetchProjects(): Promise<Project[]> {
@@ -416,6 +412,37 @@ export async function fetchClients(): Promise<string[]> {
   const { data, error } = await supabase.from('clients').select('name').order('name');
   if (error) throw error;
   return (data as { name: string }[]).map((row) => row.name);
+}
+
+// Contacts already on file for a given client (by name), for the "pick an
+// existing responsable" dropdown in ProjectModal. Empty for a brand-new
+// client name that doesn't exist yet -- nothing to pick from.
+export async function fetchClientContacts(clientName: string): Promise<ClientContact[]> {
+  const trimmed = clientName.trim();
+  if (!trimmed) return [];
+
+  const { data: client, error: clientError } = await supabase
+    .from('clients')
+    .select('id')
+    .ilike('name', trimmed)
+    .maybeSingle();
+  if (clientError) throw clientError;
+  if (!client) return [];
+
+  const { data, error } = await supabase
+    .from('client_contacts')
+    .select('id, name, email, phone, description')
+    .eq('client_id', client.id)
+    .order('name');
+  if (error) throw error;
+
+  return (data ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    email: c.email ?? '',
+    phone: c.phone ?? '',
+    description: c.description ?? undefined,
+  }));
 }
 
 export interface OrphanClient {

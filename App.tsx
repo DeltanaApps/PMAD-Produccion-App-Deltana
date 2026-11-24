@@ -28,6 +28,7 @@ import {
   fetchCurrentProfile,
   fetchProjectManagers,
   fetchClients,
+  fetchClientContacts,
   fetchMyOrphanClients,
   type OrphanClient,
 } from './lib/api/fetch';
@@ -42,6 +43,7 @@ import {
   saveInternalFinancials as apiSaveInternalFinancials,
   updateProjectWithMembers as apiUpdateProjectWithMembers,
   deleteClient as apiDeleteClient,
+  createClientContact as apiCreateClientContact,
 } from './lib/api/projects';
 import {
   saveNewCollaborator as apiSaveNewCollaborator,
@@ -69,12 +71,12 @@ const ROLE_LABELS: Record<string, string> = {
 // the Administración panel (user management) — see isAdministradorRole below.
 const PORTFOLIO_VIEW_ROLES = ['direccion', 'administracion', 'administrador'];
 const isPortfolioViewRole = (role: string | null) => !!role && PORTFOLIO_VIEW_ROLES.includes(role);
-// Gestor also gets Dashboard Ejecutivo (tentatively alongside their regular
-// Dashboard, not replacing it) -- but keeps every other portfolio-view
-// behavior (readOnly props, "Mis Proyectos"/"Mis Clientes" labels, etc.)
-// exactly as before. Their own projects/manager filter data is already
-// scoped to just them by RLS, so the dashboard naturally shows only their
-// own portfolio with no extra filtering needed.
+// Gestor also gets Dashboard Ejecutivo, replacing their old "Dashboard" item
+// entirely (same single nav slot as portfolio roles) -- but keeps every
+// other portfolio-view behavior (readOnly props, "Mis Proyectos"/"Mis
+// Clientes" labels, etc.) exactly as before. Their own projects/manager
+// filter data is already scoped to just them by RLS, so the dashboard
+// naturally shows only their own portfolio with no extra filtering needed.
 const canViewExecutiveDashboard = (role: string | null) => isPortfolioViewRole(role) || role === 'gestor';
 // Only "administrador" manages user accounts/roles — "administracion" (the
 // accounting-focused role) shares the read-only portfolio view above but has
@@ -785,6 +787,8 @@ const App: React.FC = () => {
           onClose={handleCloseProjectModal}
           onSave={handleSaveProject}
           onDelete={handleDeleteProject}
+          onFetchClientContacts={fetchClientContacts}
+          onCreateClientContact={(clientName, contact) => apiCreateClientContact(clientName, contact, session.user.id)}
         />
       )}
 

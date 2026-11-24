@@ -129,7 +129,22 @@ export interface TeamMember {
   active?: boolean; // true = working now, false = finished task in this project
 }
 
-export interface ContactInfo {
+// A person already on file for a client (shared across every project with
+// that client, instead of re-typed per project).
+export interface ClientContact {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  description?: string; // cargo / puesto en su empresa
+}
+
+// A client contact's assignment to one project, with the responsibility they
+// have on that specific project (e.g. "General", "Técnico", "Económico" --
+// free text, not a fixed set).
+export interface ProjectContact {
+  clientContactId: string;
+  roleLabel: string;
   name: string;
   email: string;
   phone: string;
@@ -170,9 +185,7 @@ export interface Project {
   profitabilityTarget?: number; // Custom profitability threshold (%), overrides the app-wide default (50%) when set
   proposalCode?: string; // Archived code the project used while it was still a Proposal
   proposalEstimateUrl?: string; // Link to the proposal's estimate/budget document
-  technicalContacts?: ContactInfo[];
-  economicContacts?: ContactInfo[];
-  generalContact?: ContactInfo;
+  contacts?: ProjectContact[];
 }
 
 export type View = 'dashboard' | 'projects' | 'team' | 'clients' | 'collaborators' | 'internal-team' | 'planning' | 'economic-tracking' | 'executive-dashboard' | 'administration';

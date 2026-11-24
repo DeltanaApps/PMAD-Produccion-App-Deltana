@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import type { Project, TeamMember, PartialDelivery, ContactInfo } from '../types';
+import type { Project, TeamMember, PartialDelivery, ClientContact, ProjectContact } from '../types';
 import { ProjectStatus, MemberType } from '../types';
 import Card from './ui/Card';
 import { PlusIcon, TrashIcon } from './ui/Icons';
@@ -12,7 +12,49 @@ interface ProjectModalProps {
   onClose: () => void;
   onSave: (projectData: Omit<Project, 'id'>) => void;
   onDelete?: (projectId: string) => void;
+  onFetchClientContacts: (clientName: string) => Promise<ClientContact[]>;
+  onCreateClientContact: (
+    clientName: string,
+    contact: { name: string; email: string; phone: string; description?: string }
+  ) => Promise<ClientContact>;
 }
+
+const ROLE_LABEL_SUGGESTIONS = ['General', 'Técnico', 'Técnico 1', 'Técnico 2', 'Económico', 'Comercial'];
+
+const NEW_CONTACT_VALUE = '__new__';
+
+// One row of "responsable asignado a este proyecto": either an existing
+// client_contacts person (mode 'existing', picked by id) or data for a brand
+// new one (mode 'new'), not yet saved to the shared directory until submit.
+interface ContactRowState {
+  mode: 'existing' | 'new';
+  roleLabel: string;
+  clientContactId: string;
+  newName: string;
+  newEmail: string;
+  newPhone: string;
+  newDescription: string;
+}
+
+const emptyContactRow = (): ContactRowState => ({
+  mode: 'existing',
+  roleLabel: '',
+  clientContactId: '',
+  newName: '',
+  newEmail: '',
+  newPhone: '',
+  newDescription: '',
+});
+
+const contactRowFromProjectContact = (c: ProjectContact): ContactRowState => ({
+  mode: 'existing',
+  roleLabel: c.roleLabel,
+  clientContactId: c.clientContactId,
+  newName: '',
+  newEmail: '',
+  newPhone: '',
+  newDescription: '',
+});
 
 const CloseIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -34,7 +76,7 @@ const Input: React.FC<InputProps> = ({ label, className, ...props }) => (
     </div>
 );
 
-const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, availableTeamMembers, onClose, onSave, onDelete }) => {
+const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, availableTeamMembers, onClose, onSave, onDelete, onFetchClientContacts, onCreateClientContact }) => {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [exportName, setExportName] = useState('');
@@ -57,10 +99,10 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
   const proposalTransitionHandledRef = React.useRef(false);
 
   // Contact Info State
-  const [techContacts, setTechContacts] = useState<ContactInfo[]>([]);
-  const [ecoContacts, setEcoContacts] = useState<ContactInfo[]>([]);
-  const [generalContact, setGeneralContact] = useState<ContactInfo>({ name: '', email: '', phone: '', description: '' });
-  
+  const [contactRows, setContactRows] = useState<ContactRowState[]>([]);
+  const [clientContactOptions, setClientContactOptions] = useState<ClientContact[]>([]);
+  const [savingContacts, setSavingContacts] = useState(false);
+
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [partialDeliveries, setPartialDeliveries] = useState<PartialDelivery[]>([]);
   
@@ -94,25 +136,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
       proposalTransitionHandledRef.current = false;
 
       // Load Contacts
-      if (project.technicalContacts) {
-          setTechContacts(project.technicalContacts);
-      } else if ((project as any).technicalContact) {
-          const old = (project as any).technicalContact;
-          setTechContacts([{ ...old, description: '' }]);
-      } else {
-          setTechContacts([]);
-      }
-
-      if (project.economicContacts) {
-          setEcoContacts(project.economicContacts);
-      } else if ((project as any).economicContact) {
-          const old = (project as any).economicContact;
-          setEcoContacts([{ ...old, description: '' }]);
-      } else {
-          setEcoContacts([]);
-      }
-      
-      setGeneralContact(project.generalContact || { name: '', email: '', phone: '', description: '' });
+      setContactRows((project.contacts ?? []).map(contactRowFromProjectContact));
 
     } else {
       // Reset for new project
@@ -135,11 +159,23 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
       proposalTransitionHandledRef.current = false;
 
       // Reset Contacts
-      setTechContacts([]);
-      setEcoContacts([]);
-      setGeneralContact({ name: '', email: '', phone: '', description: '' });
+      setContactRows([]);
     }
   }, [project]);
+
+  // Loads the picker's options whenever the selected client changes. A
+  // brand-new client (still being typed) has nothing to pick from yet.
+  useEffect(() => {
+    if (!client.trim() || isNewClient) {
+      setClientContactOptions([]);
+      return;
+    }
+    let cancelled = false;
+    onFetchClientContacts(client)
+      .then((options) => { if (!cancelled) setClientContactOptions(options); })
+      .catch(() => { if (!cancelled) setClientContactOptions([]); });
+    return () => { cancelled = true; };
+  }, [client, isNewClient]);
 
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newStatus = e.target.value as ProjectStatus;
@@ -155,7 +191,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
     setStatus(newStatus);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !client.trim() || !code.trim()) {
         const codeLabel = status === ProjectStatus.Proposal ? 'código de propuesta' : 'código de proyecto';
@@ -167,6 +203,60 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
         alert("El umbral de rentabilidad personalizado debe ser un número entre 0 y 100.");
         return;
     }
+    for (const row of contactRows) {
+        if (!row.roleLabel.trim()) continue;
+        if (row.mode === 'existing' && !row.clientContactId) {
+            alert("Hay un responsable sin seleccionar. Elige a la persona o quítala de la lista.");
+            return;
+        }
+        if (row.mode === 'new' && !row.newName.trim()) {
+            alert("Hay un responsable nuevo sin nombre. Complétalo o quítalo de la lista.");
+            return;
+        }
+    }
+
+    let resolvedContacts: ProjectContact[];
+    try {
+        setSavingContacts(true);
+        resolvedContacts = await Promise.all(
+            contactRows
+                .filter((row) => row.roleLabel.trim())
+                .map(async (row): Promise<ProjectContact> => {
+                    if (row.mode === 'existing') {
+                        const opt = clientContactOptions.find((o) => o.id === row.clientContactId);
+                        return {
+                            clientContactId: row.clientContactId,
+                            roleLabel: row.roleLabel.trim(),
+                            name: opt?.name ?? '',
+                            email: opt?.email ?? '',
+                            phone: opt?.phone ?? '',
+                            description: opt?.description,
+                        };
+                    }
+                    const created = await onCreateClientContact(client, {
+                        name: row.newName.trim(),
+                        email: row.newEmail.trim(),
+                        phone: row.newPhone.trim(),
+                        description: row.newDescription.trim() || undefined,
+                    });
+                    return {
+                        clientContactId: created.id,
+                        roleLabel: row.roleLabel.trim(),
+                        name: created.name,
+                        email: created.email,
+                        phone: created.phone,
+                        description: created.description,
+                    };
+                })
+        );
+    } catch (err) {
+        console.error(err);
+        alert("No se pudo guardar uno de los responsables nuevos. Inténtalo de nuevo.");
+        setSavingContacts(false);
+        return;
+    }
+    setSavingContacts(false);
+
     onSave({
         code,
         name,
@@ -183,33 +273,26 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
         profitabilityTarget: trimmedTarget === '' ? undefined : Number(trimmedTarget),
         proposalCode: proposalCode.trim() || undefined,
         proposalEstimateUrl: proposalEstimateUrl.trim() || undefined,
-        technicalContacts: techContacts,
-        economicContacts: ecoContacts,
-        generalContact: generalContact
+        contacts: resolvedContacts,
     });
   };
-  
+
   // Handlers for Contacts
-  const handleAddTechContact = () => setTechContacts([...techContacts, { name: '', email: '', phone: '', description: '' }]);
-  const handleUpdateTechContact = (index: number, field: keyof ContactInfo, value: string) => {
-    const updated = [...techContacts];
-    updated[index] = { ...updated[index], [field]: value };
-    setTechContacts(updated);
+  const handleAddContactRow = () => setContactRows([...contactRows, emptyContactRow()]);
+  const handleRemoveContactRow = (index: number) => setContactRows(contactRows.filter((_, i) => i !== index));
+  const handleUpdateContactRow = (index: number, patch: Partial<ContactRowState>) => {
+    const updated = [...contactRows];
+    updated[index] = { ...updated[index], ...patch };
+    setContactRows(updated);
   };
-  const handleRemoveTechContact = (index: number) => setTechContacts(techContacts.filter((_, i) => i !== index));
+  const handleContactSelect = (index: number, value: string) => {
+    if (value === NEW_CONTACT_VALUE) {
+        handleUpdateContactRow(index, { mode: 'new', clientContactId: '' });
+    } else {
+        handleUpdateContactRow(index, { mode: 'existing', clientContactId: value });
+    }
+  };
 
-  const handleAddEcoContact = () => setEcoContacts([...ecoContacts, { name: '', email: '', phone: '', description: '' }]);
-  const handleUpdateEcoContact = (index: number, field: keyof ContactInfo, value: string) => {
-    const updated = [...ecoContacts];
-    updated[index] = { ...updated[index], [field]: value };
-    setEcoContacts(updated);
-  };
-  const handleRemoveEcoContact = (index: number) => setEcoContacts(ecoContacts.filter((_, i) => i !== index));
-
-  const handleUpdateGeneralContact = (field: keyof ContactInfo, value: string) => {
-    setGeneralContact({ ...generalContact, [field]: value });
-  };
-  
   // Handlers for Partial Deliveries
   const handleAddDelivery = () => {
     setPartialDeliveries([...partialDeliveries, { id: `pd-${Date.now()}`, description: '', date: '', completed: false }]);
@@ -426,73 +509,72 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
 
                 {/* Client Contacts Section */}
                 <div className="border-t border-gray-700 pt-4 mt-4">
-                    <h3 className="text-lg font-semibold text-sky-400 mb-3">Contactos del Cliente</h3>
-                    
-                    <div className="space-y-6">
-                        {/* General Contact */}
-                        <div className="bg-gray-800/50 p-3 rounded border border-sky-900/30">
-                            <p className="text-xs font-bold text-sky-400 uppercase mb-2">Responsable General (Jefe de Proyecto)</p>
-                            <div className="grid grid-cols-1 gap-2">
-                                <Input label="Nombre" value={generalContact.name} onChange={(e) => handleUpdateGeneralContact('name', e.target.value)} placeholder="Nombre completo" />
-                                <div className="grid grid-cols-2 gap-2">
-                                    <Input label="Email" value={generalContact.email} onChange={(e) => handleUpdateGeneralContact('email', e.target.value)} placeholder="email@cliente.com" />
-                                    <Input label="Teléfono" value={generalContact.phone} onChange={(e) => handleUpdateGeneralContact('phone', e.target.value)} placeholder="+34 600..." />
+                    <div className="flex justify-between items-center mb-3">
+                        <h3 className="text-lg font-semibold text-sky-400">Responsables del Cliente</h3>
+                        <button type="button" onClick={handleAddContactRow} className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">
+                            <PlusIcon className="w-3 h-3"/> Añadir responsable
+                        </button>
+                    </div>
+
+                    <div className="space-y-3">
+                        {contactRows.map((row, idx) => (
+                            <div key={idx} className="grid grid-cols-1 gap-2 p-3 bg-gray-900/50 rounded border border-gray-800 relative group">
+                                <button type="button" onClick={() => handleRemoveContactRow(idx)} className="absolute top-2 right-2 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <TrashIcon className="w-4 h-4" />
+                                </button>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Persona</label>
+                                    <select
+                                        value={row.mode === 'new' ? NEW_CONTACT_VALUE : row.clientContactId}
+                                        onChange={(e) => handleContactSelect(idx, e.target.value)}
+                                        className="w-full bg-gray-900 border border-gray-700 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                                    >
+                                        <option value="">Seleccionar persona...</option>
+                                        {clientContactOptions.map((c) => (
+                                            <option key={c.id} value={c.id}>{c.name}{c.description ? ` — ${c.description}` : ''}</option>
+                                        ))}
+                                        <option value={NEW_CONTACT_VALUE} className="font-bold text-sky-400">+ Crear nuevo contacto</option>
+                                    </select>
                                 </div>
-                                <Input label="Descripción" value={generalContact.description} onChange={(e) => handleUpdateGeneralContact('description', e.target.value)} placeholder="Ej: Director General de Infraestructura" />
-                            </div>
-                        </div>
 
-                        {/* Technical Contacts */}
-                        <div className="bg-gray-800/50 p-3 rounded border border-gray-700/50">
-                            <div className="flex justify-between items-center mb-2">
-                                <p className="text-xs font-bold text-gray-400 uppercase">Responsables Técnicos</p>
-                                <button type="button" onClick={handleAddTechContact} className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">
-                                    <PlusIcon className="w-3 h-3"/> Añadir
-                                </button>
-                            </div>
-                            <div className="space-y-3">
-                                {techContacts.map((c, idx) => (
-                                    <div key={idx} className="grid grid-cols-1 gap-2 p-3 bg-gray-900/50 rounded border border-gray-800 relative group">
-                                        <button type="button" onClick={() => handleRemoveTechContact(idx)} className="absolute top-2 right-2 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <TrashIcon className="w-4 h-4" />
-                                        </button>
-                                        <Input label="Nombre" value={c.name} onChange={(e) => handleUpdateTechContact(idx, 'name', e.target.value)} placeholder="Nombre completo" />
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <Input label="Email" value={c.email} onChange={(e) => handleUpdateTechContact(idx, 'email', e.target.value)} placeholder="email@cliente.com" />
-                                            <Input label="Teléfono" value={c.phone} onChange={(e) => handleUpdateTechContact(idx, 'phone', e.target.value)} placeholder="+34 600..." />
+                                {row.mode === 'existing' && row.clientContactId && (() => {
+                                    const opt = clientContactOptions.find((o) => o.id === row.clientContactId);
+                                    return opt ? (
+                                        <div className="text-xs text-gray-400 px-1">
+                                            {opt.email && <span className="mr-3">{opt.email}</span>}
+                                            {opt.phone && <span>{opt.phone}</span>}
                                         </div>
-                                        <Input label="Descripción / Disciplina" value={c.description} onChange={(e) => handleUpdateTechContact(idx, 'description', e.target.value)} placeholder="Ej: Responsable BoQ / Estructuras" />
-                                    </div>
-                                ))}
-                                {techContacts.length === 0 && <p className="text-[10px] text-gray-500 italic text-center">No hay responsables técnicos añadidos.</p>}
-                            </div>
-                        </div>
+                                    ) : null;
+                                })()}
 
-                        {/* Economic Contacts */}
-                        <div className="bg-gray-800/50 p-3 rounded border border-gray-700/50">
-                            <div className="flex justify-between items-center mb-2">
-                                <p className="text-xs font-bold text-gray-400 uppercase">Responsables Económicos</p>
-                                <button type="button" onClick={handleAddEcoContact} className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">
-                                    <PlusIcon className="w-3 h-3"/> Añadir
-                                </button>
-                            </div>
-                            <div className="space-y-3">
-                                {ecoContacts.map((c, idx) => (
-                                    <div key={idx} className="grid grid-cols-1 gap-2 p-3 bg-gray-900/50 rounded border border-gray-800 relative group">
-                                        <button type="button" onClick={() => handleRemoveEcoContact(idx)} className="absolute top-2 right-2 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <TrashIcon className="w-4 h-4" />
-                                        </button>
-                                        <Input label="Nombre" value={c.name} onChange={(e) => handleUpdateEcoContact(idx, 'name', e.target.value)} placeholder="Nombre completo" />
+                                {row.mode === 'new' && (
+                                    <div className="grid grid-cols-1 gap-2 pl-3 border-l-2 border-sky-900/50">
+                                        <Input label="Nombre" value={row.newName} onChange={(e) => handleUpdateContactRow(idx, { newName: e.target.value })} placeholder="Nombre completo" />
                                         <div className="grid grid-cols-2 gap-2">
-                                            <Input label="Email" value={c.email} onChange={(e) => handleUpdateEcoContact(idx, 'email', e.target.value)} placeholder="facturacion@cliente.com" />
-                                            <Input label="Teléfono" value={c.phone} onChange={(e) => handleUpdateEcoContact(idx, 'phone', e.target.value)} placeholder="+34 600..." />
+                                            <Input label="Email" value={row.newEmail} onChange={(e) => handleUpdateContactRow(idx, { newEmail: e.target.value })} placeholder="email@cliente.com" />
+                                            <Input label="Teléfono" value={row.newPhone} onChange={(e) => handleUpdateContactRow(idx, { newPhone: e.target.value })} placeholder="+34 600..." />
                                         </div>
-                                        <Input label="Descripción" value={c.description} onChange={(e) => handleUpdateEcoContact(idx, 'description', e.target.value)} placeholder="Ej: Responsable de Facturación" />
+                                        <Input label="Cargo" value={row.newDescription} onChange={(e) => handleUpdateContactRow(idx, { newDescription: e.target.value })} placeholder="Ej: Director de Infraestructura" />
                                     </div>
-                                ))}
-                                {ecoContacts.length === 0 && <p className="text-[10px] text-gray-500 italic text-center">No hay responsables económicos añadidos.</p>}
+                                )}
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Responsabilidad en este proyecto</label>
+                                    <input
+                                        list="role-label-suggestions"
+                                        value={row.roleLabel}
+                                        onChange={(e) => handleUpdateContactRow(idx, { roleLabel: e.target.value })}
+                                        placeholder="Ej: General, Técnico, Económico..."
+                                        className="w-full bg-gray-900 border border-gray-700 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                                    />
+                                </div>
                             </div>
-                        </div>
+                        ))}
+                        {contactRows.length === 0 && <p className="text-[10px] text-gray-500 italic text-center">No hay responsables añadidos.</p>}
+                        <datalist id="role-label-suggestions">
+                            {ROLE_LABEL_SUGGESTIONS.map((s) => <option key={s} value={s} />)}
+                        </datalist>
                     </div>
                 </div>
 
@@ -630,8 +712,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
                 <button type="button" onClick={onClose} className="px-6 py-2 rounded-md bg-gray-700 text-white hover:bg-gray-600 transition-colors font-medium">
                     Cancelar
                 </button>
-                <button type="submit" onClick={handleSubmit} className="px-6 py-2 rounded-md bg-sky-600 text-white hover:bg-sky-700 transition-colors font-bold shadow-lg shadow-sky-900/50">
-                    {project ? 'Guardar Cambios' : 'Crear Proyecto'}
+                <button type="submit" onClick={handleSubmit} disabled={savingContacts} className="px-6 py-2 rounded-md bg-sky-600 text-white hover:bg-sky-700 transition-colors font-bold shadow-lg shadow-sky-900/50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    {savingContacts ? 'Guardando...' : (project ? 'Guardar Cambios' : 'Crear Proyecto')}
                 </button>
             </div>
         </div>

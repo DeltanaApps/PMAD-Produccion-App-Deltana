@@ -147,16 +147,12 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ project, intern
           </div>
 
           {/* Contactos */}
-          {(project.generalContact?.name || project.technicalContacts?.length || project.economicContacts?.length) ? (
+          {(project.contacts?.length ?? 0) > 0 ? (
             <div>
               <h3 className="text-sm font-bold text-sky-400 uppercase tracking-wide mb-2">Contactos del Cliente</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {project.generalContact?.name && <ContactBlock label="Responsable General" contact={project.generalContact} />}
-                {(project.technicalContacts || []).map((c, idx) => (
-                  <ContactBlock key={`tech-${idx}`} label={`Resp. Técnico ${(project.technicalContacts?.length || 0) > 1 ? idx + 1 : ''}`} contact={c} />
-                ))}
-                {(project.economicContacts || []).map((c, idx) => (
-                  <ContactBlock key={`eco-${idx}`} label={`Resp. Económico ${(project.economicContacts?.length || 0) > 1 ? idx + 1 : ''}`} contact={c} />
+                {(project.contacts || []).map((c) => (
+                  <ContactBlock key={c.clientContactId} label={c.roleLabel} contact={c} />
                 ))}
               </div>
             </div>
