@@ -87,6 +87,71 @@ const DrillDownModal: React.FC<{
   </div>
 );
 
+interface ClientBillingMonthItem {
+  projectCode: string;
+  projectName: string;
+  client: string;
+  description: string;
+  amount: number;
+  date: string;
+  status: 'previsto' | 'facturado';
+}
+
+const ClientBillingMonthModal: React.FC<{
+  monthLabel: string;
+  items: ClientBillingMonthItem[];
+  onClose: () => void;
+}> = ({ monthLabel, items, onClose }) => {
+  const total = items.reduce((sum, i) => sum + i.amount, 0);
+  const sorted = [...items].sort((a, b) => a.date.localeCompare(b.date));
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" onClick={onClose}>
+      <div className="bg-gray-800 rounded-xl max-w-3xl w-full border border-gray-700 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+        <div className="p-4 bg-gray-900 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
+          <h3 className="font-bold text-lg text-white">Facturación a Clientes — {monthLabel} <span className="text-sm text-gray-500 font-normal">({formatEuro(total)})</span></h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition-colors">✕</button>
+        </div>
+        <div className="overflow-y-auto flex-1">
+          <table className="w-full text-sm text-left text-gray-400">
+            <thead className="text-xs text-gray-500 uppercase bg-gray-700/50 sticky top-0">
+              <tr>
+                <th className="px-4 py-3">Código</th>
+                <th className="px-4 py-3">Proyecto</th>
+                <th className="px-4 py-3">Cliente</th>
+                <th className="px-4 py-3">Concepto</th>
+                <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3 text-right">Importe</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((it, idx) => (
+                <tr key={idx} className="border-b border-gray-700 hover:bg-gray-800/50 transition-colors">
+                  <td className="px-4 py-3 font-mono text-xs text-sky-400">{it.projectCode}</td>
+                  <td className="px-4 py-3 font-medium text-white">{it.projectName}</td>
+                  <td className="px-4 py-3">{it.client}</td>
+                  <td className="px-4 py-3">{it.description}</td>
+                  <td className="px-4 py-3">
+                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${it.status === 'facturado' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-amber-400 border-amber-500/30 bg-amber-500/10'}`}>
+                      {it.status === 'facturado' ? 'Facturado' : 'Previsto'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono">{formatEuro(it.amount)}</td>
+                </tr>
+              ))}
+              {sorted.length === 0 && (
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-500">No hay facturación prevista ni registrada para este mes.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="p-4 bg-gray-900 border-t border-gray-700 flex justify-end flex-shrink-0">
+          <button onClick={onClose} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium text-sm transition-colors">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface MonthForecastItem {
   category: 'cliente' | 'externo';
   projectCode: string;
@@ -159,6 +224,8 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
   const [includeClients, setIncludeClients] = useState(true);
   const [includeExternals, setIncludeExternals] = useState(true);
   const [monthDrillDown, setMonthDrillDown] = useState<{ label: string; items: MonthForecastItem[]; clientTotal: number; externalTotal: number } | null>(null);
+  const [billingMonth, setBillingMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [showBillingMonthModal, setShowBillingMonthModal] = useState(false);
 
   const managerOptions = useMemo(() => {
     const seen = new Map<string, string>();
@@ -312,6 +379,45 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
     }));
   }, [cashflowForecastRaw, includeClients, includeExternals]);
 
+  const monthlyClientBilling = useMemo(() => {
+    const items: ClientBillingMonthItem[] = [];
+    filteredProjects.forEach((p) => {
+      (p.clientInfo?.plannedInvoices || []).forEach((pi) => {
+        if (!pi.date || pi.date.slice(0, 7) !== billingMonth) return;
+        items.push({
+          projectCode: p.code,
+          projectName: p.name,
+          client: p.client,
+          description: pi.description || 'Factura planificada',
+          amount: pi.amount,
+          date: pi.date,
+          status: 'previsto',
+        });
+      });
+      (p.clientInfo?.invoices || []).forEach((inv) => {
+        if (!inv.date || inv.date.slice(0, 7) !== billingMonth) return;
+        items.push({
+          projectCode: p.code,
+          projectName: p.name,
+          client: p.client,
+          description: `Factura ${inv.id}`,
+          amount: inv.amount,
+          date: inv.date,
+          status: 'facturado',
+        });
+      });
+    });
+    const previstoTotal = items.filter((i) => i.status === 'previsto').reduce((sum, i) => sum + i.amount, 0);
+    const facturadoTotal = items.filter((i) => i.status === 'facturado').reduce((sum, i) => sum + i.amount, 0);
+    return { items, total: previstoTotal + facturadoTotal, previstoTotal, facturadoTotal };
+  }, [filteredProjects, billingMonth]);
+
+  const billingMonthLabel = useMemo(() => {
+    const [y, m] = billingMonth.split('-').map(Number);
+    if (!y || !m) return billingMonth;
+    return new Date(y, m - 1, 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+  }, [billingMonth]);
+
   const handleDownloadPdf = () => {
     window.print();
   };
@@ -425,6 +531,48 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
           </Card>
         </button>
       </div>
+
+      {/* Monthly client billing filter */}
+      <Card className="mb-8">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <MoneyIcon className="h-5 w-5 text-emerald-400" />
+              Facturación a Clientes del Mes
+            </h2>
+            <p className="text-xs text-gray-500 mt-1">Lo previsto a facturar + lo ya facturado a clientes en el mes elegido.</p>
+          </div>
+          <div className="flex flex-col print:hidden">
+            <label className="text-[10px] text-gray-500 font-semibold uppercase ml-1">Mes</label>
+            <input
+              type="month"
+              value={billingMonth}
+              onChange={(e) => setBillingMonth(e.target.value)}
+              className="bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:ring-2 focus:ring-sky-500"
+            />
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowBillingMonthModal(true)}
+          className="w-full text-left mt-4 p-4 rounded-lg border border-gray-700 bg-gray-900/40 hover:bg-gray-800/60 transition-colors cursor-pointer"
+        >
+          <p className="text-3xl font-bold text-emerald-400 font-mono">{formatEuro(monthlyClientBilling.total)}</p>
+          <p className="text-xs text-gray-400 mt-2 capitalize">
+            {billingMonthLabel} · Previsto: <span className="text-amber-400 font-medium">{formatEuro(monthlyClientBilling.previstoTotal)}</span>
+            {' · '}Ya facturado: <span className="text-emerald-400 font-medium">{formatEuro(monthlyClientBilling.facturadoTotal)}</span>
+            {' · clic para ver el detalle'}
+          </p>
+        </button>
+      </Card>
+
+      {showBillingMonthModal && (
+        <ClientBillingMonthModal
+          monthLabel={billingMonthLabel}
+          items={monthlyClientBilling.items}
+          onClose={() => setShowBillingMonthModal(false)}
+        />
+      )}
 
       {/* Health distribution */}
       <Card className="mb-8">
