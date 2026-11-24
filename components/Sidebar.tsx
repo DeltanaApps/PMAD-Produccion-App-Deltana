@@ -7,6 +7,7 @@ interface SidebarProps {
   currentView: View;
   setCurrentView: (view: View) => void;
   canViewExecutiveDashboard?: boolean;
+  isPortfolioRole?: boolean;
   showInternalTeam?: boolean;
   isAdministracion?: boolean;
   pendingApprovalCount?: number;
@@ -50,7 +51,7 @@ const NavItem: React.FC<{
   );
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, canViewExecutiveDashboard, showInternalTeam, isAdministracion, pendingApprovalCount }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, canViewExecutiveDashboard, isPortfolioRole, showInternalTeam, isAdministracion, pendingApprovalCount }) => {
   const iconClass = "h-6 w-6";
 
   return (
@@ -84,7 +85,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, canViewE
         )}
         <NavItem
           icon={<ProjectsIcon className={iconClass} />}
-          label={canViewExecutiveDashboard ? 'Proyectos' : 'Mis Proyectos'}
+          label={isPortfolioRole ? 'Proyectos' : 'Mis Proyectos'}
           isActive={currentView === 'projects'}
           onClick={() => setCurrentView('projects')}
         />
@@ -96,11 +97,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, canViewE
         />
         <NavItem
           icon={<ClientsIcon className={iconClass} />}
-          label={canViewExecutiveDashboard ? 'Clientes' : 'Mis Clientes'}
+          label={isPortfolioRole ? 'Clientes' : 'Mis Clientes'}
           isActive={currentView === 'clients'}
           onClick={() => setCurrentView('clients')}
         />
-        {!canViewExecutiveDashboard && (
+        {!isPortfolioRole && (
           <NavItem
             icon={<CalendarIcon className={iconClass} />}
             label="Planificación"
@@ -108,7 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, canViewE
             onClick={() => setCurrentView('planning')}
           />
         )}
-        {(!canViewExecutiveDashboard || showInternalTeam) && (
+        {(!isPortfolioRole || showInternalTeam) && (
           <NavItem
             icon={<BriefcaseIcon className={iconClass} />}
             label="Gestión de Recursos Internos"

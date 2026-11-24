@@ -69,6 +69,13 @@ const ROLE_LABELS: Record<string, string> = {
 // the Administración panel (user management) — see isAdministradorRole below.
 const PORTFOLIO_VIEW_ROLES = ['direccion', 'administracion', 'administrador'];
 const isPortfolioViewRole = (role: string | null) => !!role && PORTFOLIO_VIEW_ROLES.includes(role);
+// Gestor also gets Dashboard Ejecutivo (tentatively alongside their regular
+// Dashboard, not replacing it) -- but keeps every other portfolio-view
+// behavior (readOnly props, "Mis Proyectos"/"Mis Clientes" labels, etc.)
+// exactly as before. Their own projects/manager filter data is already
+// scoped to just them by RLS, so the dashboard naturally shows only their
+// own portfolio with no extra filtering needed.
+const canViewExecutiveDashboard = (role: string | null) => isPortfolioViewRole(role) || role === 'gestor';
 // Only "administrador" manages user accounts/roles — "administracion" (the
 // accounting-focused role) shares the read-only portfolio view above but has
 // no access to user management.
@@ -225,7 +232,7 @@ const App: React.FC = () => {
         if (profile?.theme_preference === 'light' || profile?.theme_preference === 'dark') {
           setTheme(profile.theme_preference);
         }
-        if (isPortfolioViewRole(profile?.role ?? null)) {
+        if (canViewExecutiveDashboard(profile?.role ?? null)) {
           fetchProjectManagers().then(setProjectManagers).catch(handlePersistError);
           setCurrentView('executive-dashboard');
         }
@@ -657,7 +664,7 @@ const App: React.FC = () => {
       case 'economic-tracking':
         return <EconomicTracking projects={projects} globalRates={internalRates} projectManagers={projectManagers} />;
       case 'executive-dashboard':
-        if (!isPortfolioViewRole(currentUserRole)) {
+        if (!canViewExecutiveDashboard(currentUserRole)) {
           return <Dashboard projects={projects} internalRates={internalRates} />;
         }
         return (
@@ -709,7 +716,8 @@ const App: React.FC = () => {
       <Sidebar
         currentView={currentView}
         setCurrentView={navigateTo}
-        canViewExecutiveDashboard={isPortfolioViewRole(currentUserRole)}
+        canViewExecutiveDashboard={canViewExecutiveDashboard(currentUserRole)}
+        isPortfolioRole={isPortfolioViewRole(currentUserRole)}
         showInternalTeam={!isPortfolioViewRole(currentUserRole) || isAdministracionRole(currentUserRole)}
         isAdministracion={isAdministradorRole(currentUserRole)}
         pendingApprovalCount={pendingApprovalCount}

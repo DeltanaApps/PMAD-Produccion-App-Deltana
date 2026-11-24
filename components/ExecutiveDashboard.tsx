@@ -223,38 +223,37 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
     [financials]
   );
 
-  const managerRanking = useMemo(() => {
-    const byManager = new Map<
+  const companyRanking = useMemo(() => {
+    const byCompany = new Map<
       string,
-      { name: string; projectCount: number; totalBudget: number; totalInvoiced: number; totalActualProfit: number }
+      { name: string; projectCount: number; totalBudget: number; totalInvoiced: number; items: ProjectFinancials[] }
     >();
 
     financials.forEach((f) => {
-      const manager = projectManagers[f.project.id];
-      const key = manager?.id || 'sin-asignar';
-      const name = manager?.name || 'Sin asignar';
-      const entry = byManager.get(key) || {
+      const name = (f.project.client || 'Sin cliente').trim() || 'Sin cliente';
+      const key = name.toLowerCase();
+      const entry = byCompany.get(key) || {
         name,
         projectCount: 0,
         totalBudget: 0,
         totalInvoiced: 0,
-        totalActualProfit: 0,
+        items: [],
       };
       entry.projectCount += 1;
       entry.totalBudget += f.totalBudget;
       entry.totalInvoiced += f.totalInvoiced;
-      entry.totalActualProfit += f.actualProfit;
-      byManager.set(key, entry);
+      entry.items.push(f);
+      byCompany.set(key, entry);
     });
 
-    return Array.from(byManager.values())
-      .map((m) => ({
-        ...m,
-        pendiente: m.totalBudget - m.totalInvoiced,
-        marginPercentage: m.totalBudget > 0 ? (m.totalActualProfit / m.totalBudget) * 100 : 0,
+    return Array.from(byCompany.values())
+      .filter((c) => c.totalBudget > 0)
+      .map((c) => ({
+        ...c,
+        pendiente: c.totalBudget - c.totalInvoiced,
       }))
-      .sort((a, b) => a.marginPercentage - b.marginPercentage);
-  }, [financials, projectManagers]);
+      .sort((a, b) => b.totalBudget - a.totalBudget);
+  }, [financials]);
 
   const cashflowForecastRaw = useMemo(() => {
     const now = new Date();
@@ -330,7 +329,7 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
           </p>
         </div>
         <div className="print:hidden flex items-center gap-3">
-          {managerOptions.length > 0 && (
+          {managerOptions.length > 1 && (
             <div className="flex flex-col">
               <label className="text-[10px] text-gray-500 font-semibold uppercase ml-1">Filtrar por Gestor</label>
               <select
@@ -505,44 +504,42 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* Manager ranking */}
+        {/* Company ranking */}
         <Card>
           <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <TrophyIcon className="h-5 w-5 text-pink-500" />
-            Ranking de Gestores
+            Ranking de Empresas
           </h2>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="text-[10px] uppercase text-gray-500 border-b border-gray-700">
-                  <th className="py-2 pr-2">Gestor</th>
+                  <th className="py-2 pr-2">Empresa</th>
                   <th className="py-2 px-2 text-right">Proy.</th>
                   <th className="py-2 px-2 text-right">Presupuesto</th>
-                  <th className="py-2 px-2 text-right">Pendiente</th>
-                  <th className="py-2 pl-2 text-right">Margen</th>
+                  <th className="py-2 px-2 text-right">Facturado</th>
+                  <th className="py-2 pl-2 text-right">Pendiente</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
-                {managerRanking.length === 0 && (
+                {companyRanking.length === 0 && (
                   <tr>
                     <td colSpan={5} className="py-4 text-center text-gray-500 text-xs">
                       No hay datos suficientes todavía.
                     </td>
                   </tr>
                 )}
-                {managerRanking.map((m) => (
-                  <tr key={m.name}>
-                    <td className="py-2 pr-2 text-white font-medium">{m.name}</td>
-                    <td className="py-2 px-2 text-right text-gray-300 font-mono">{m.projectCount}</td>
-                    <td className="py-2 px-2 text-right text-gray-300 font-mono">{formatEuro(m.totalBudget)}</td>
-                    <td className="py-2 px-2 text-right text-gray-300 font-mono">{formatEuro(m.pendiente)}</td>
-                    <td
-                      className={`py-2 pl-2 text-right font-mono font-bold ${
-                        m.marginPercentage >= HEALTHY_THRESHOLD ? 'text-emerald-400' : m.marginPercentage >= CRITICAL_THRESHOLD ? 'text-amber-400' : 'text-red-400'
-                      }`}
-                    >
-                      {m.marginPercentage.toFixed(1)}%
-                    </td>
+                {companyRanking.map((c) => (
+                  <tr
+                    key={c.name}
+                    onClick={() => setDrillDown({ title: `Empresa: ${c.name}`, items: c.items })}
+                    className="cursor-pointer hover:bg-gray-700/30 transition-colors"
+                  >
+                    <td className="py-2 pr-2 text-white font-medium">{c.name}</td>
+                    <td className="py-2 px-2 text-right text-gray-300 font-mono">{c.projectCount}</td>
+                    <td className="py-2 px-2 text-right text-gray-300 font-mono">{formatEuro(c.totalBudget)}</td>
+                    <td className="py-2 px-2 text-right text-gray-300 font-mono">{formatEuro(c.totalInvoiced)}</td>
+                    <td className="py-2 pl-2 text-right text-gray-300 font-mono">{formatEuro(c.pendiente)}</td>
                   </tr>
                 ))}
               </tbody>
