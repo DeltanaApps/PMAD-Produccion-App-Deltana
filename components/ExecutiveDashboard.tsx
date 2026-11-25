@@ -24,8 +24,22 @@ const formatEuro = (amount: number) =>
 // Applies when Dirección/Administrador hasn't set a goal for a given gestor yet.
 const DEFAULT_MONTHLY_GOAL = 80000;
 
+// App-wide defaults, used for any project with no custom threshold set (see
+// Project.profitabilityTarget) and for portfolio-wide aggregates that aren't
+// tied to a single project (e.g. "Margen Real de Cartera").
 const HEALTHY_THRESHOLD = 50; // margin % at or above this is "sano"
 const CRITICAL_THRESHOLD = 35; // margin % below this is "crítico"
+// Same 15-point gap as the defaults above, kept constant so a project's
+// custom "sano" threshold still has a "crítico" floor under it.
+const THRESHOLD_GAP = HEALTHY_THRESHOLD - CRITICAL_THRESHOLD;
+
+// A project's own profitabilityTarget (set in ProjectModal) overrides the
+// app-wide 50%/35% semaphore everywhere in this dashboard -- same override
+// Seguimiento Económico and Mis Proyectos already respect.
+const getProjectThresholds = (project: Project) => {
+  const healthy = project.profitabilityTarget ?? HEALTHY_THRESHOLD;
+  return { healthy, critical: healthy - THRESHOLD_GAP };
+};
 
 type HealthBucket = 'sano' | 'atencion' | 'critico' | 'sinPresupuesto';
 
@@ -68,18 +82,21 @@ const DrillDownModal: React.FC<{
             </tr>
           </thead>
           <tbody>
-            {items.map((f) => (
-              <tr key={f.project.id} className="border-b border-gray-700 hover:bg-gray-800/50 transition-colors">
-                <td className="px-4 py-3 font-mono text-xs text-sky-400">{f.project.code}</td>
-                <td className="px-4 py-3 font-medium text-white">{f.project.name}</td>
-                <td className="px-4 py-3">{f.project.client}</td>
-                <td className="px-4 py-3">{projectManagers[f.project.id]?.name || 'Sin asignar'}</td>
-                <td className="px-4 py-3 text-right font-mono">{formatEuro(f.totalBudget)}</td>
-                <td className={`px-4 py-3 text-right font-mono font-bold ${f.actualProfitPercentage >= HEALTHY_THRESHOLD ? 'text-emerald-400' : f.actualProfitPercentage >= CRITICAL_THRESHOLD ? 'text-amber-400' : 'text-red-400'}`}>
-                  {f.actualProfitPercentage.toFixed(1)}%
-                </td>
-              </tr>
-            ))}
+            {items.map((f) => {
+              const { healthy, critical } = getProjectThresholds(f.project);
+              return (
+                <tr key={f.project.id} className="border-b border-gray-700 hover:bg-gray-800/50 transition-colors">
+                  <td className="px-4 py-3 font-mono text-xs text-sky-400">{f.project.code}</td>
+                  <td className="px-4 py-3 font-medium text-white">{f.project.name}</td>
+                  <td className="px-4 py-3">{f.project.client}</td>
+                  <td className="px-4 py-3">{projectManagers[f.project.id]?.name || 'Sin asignar'}</td>
+                  <td className="px-4 py-3 text-right font-mono">{formatEuro(f.totalBudget)}</td>
+                  <td className={`px-4 py-3 text-right font-mono font-bold ${f.actualProfitPercentage >= healthy ? 'text-emerald-400' : f.actualProfitPercentage >= critical ? 'text-amber-400' : 'text-red-400'}`}>
+                    {f.actualProfitPercentage.toFixed(1)}%
+                  </td>
+                </tr>
+              );
+            })}
             {items.length === 0 && (
               <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-500">No hay proyectos en este grupo.</td></tr>
             )}
@@ -355,7 +372,7 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
     const totalFacturado = financials.reduce((acc, f) => acc + f.totalInvoiced, 0);
     const totalActualProfit = financials.reduce((acc, f) => acc + f.actualProfit, 0);
     const margenCartera = totalCartera > 0 ? (totalActualProfit / totalCartera) * 100 : 0;
-    const enRiesgo = financials.filter((f) => f.totalBudget > 0 && f.actualProfitPercentage < HEALTHY_THRESHOLD).length;
+    const enRiesgo = financials.filter((f) => f.totalBudget > 0 && f.actualProfitPercentage < getProjectThresholds(f.project).healthy).length;
     return { totalCartera, totalFacturado, margenCartera, enRiesgo };
   }, [financials]);
 
@@ -367,10 +384,11 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
       sinPresupuesto: { count: 0, budget: 0, items: [] },
     };
     financials.forEach((f) => {
+      const { healthy, critical } = getProjectThresholds(f.project);
       let bucket: HealthBucket;
       if (f.totalBudget === 0) bucket = 'sinPresupuesto';
-      else if (f.actualProfitPercentage < CRITICAL_THRESHOLD) bucket = 'critico';
-      else if (f.actualProfitPercentage < HEALTHY_THRESHOLD) bucket = 'atencion';
+      else if (f.actualProfitPercentage < critical) bucket = 'critico';
+      else if (f.actualProfitPercentage < healthy) bucket = 'atencion';
       else bucket = 'sano';
       buckets[bucket].count += 1;
       buckets[bucket].budget += f.totalBudget;
@@ -380,7 +398,7 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   }, [financials]);
 
   const riskProjects = useMemo(
-    () => financials.filter((f) => f.totalBudget > 0 && f.actualProfitPercentage < HEALTHY_THRESHOLD),
+    () => financials.filter((f) => f.totalBudget > 0 && f.actualProfitPercentage < getProjectThresholds(f.project).healthy),
     [financials]
   );
 
@@ -652,7 +670,7 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           <Card className="border-l-4 border-red-500 hover:bg-gray-800/60 transition-colors cursor-pointer">
             <p className="text-xs uppercase text-gray-400 font-bold tracking-wider">Proyectos en Riesgo</p>
             <p className="text-2xl font-bold text-red-400 mt-2 font-mono">{kpis.enRiesgo}</p>
-            <p className="text-xs text-gray-500 mt-1">Margen real por debajo del {HEALTHY_THRESHOLD}% · clic para ver cuáles</p>
+            <p className="text-xs text-gray-500 mt-1">Margen real por debajo del umbral de rentabilidad de cada proyecto ({HEALTHY_THRESHOLD}% por defecto) · clic para ver cuáles</p>
           </Card>
         </button>
       </div>
