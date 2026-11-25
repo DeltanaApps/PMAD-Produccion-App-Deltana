@@ -418,6 +418,30 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
     return new Date(y, m - 1, 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
   }, [billingMonth]);
 
+  const managerBillingRanking = useMemo(() => {
+    if (managerFilter !== 'all') return [];
+    const byManager = new Map<string, { name: string; previsto: number; facturado: number }>();
+    projects.forEach((p) => {
+      const m = projectManagers[p.id];
+      const key = m?.id || '__sin_asignar__';
+      const name = m?.name || 'Sin asignar';
+      const entry = byManager.get(key) || { name, previsto: 0, facturado: 0 };
+      (p.clientInfo?.plannedInvoices || []).forEach((pi) => {
+        if (!pi.date || pi.date.slice(0, 7) !== billingMonth) return;
+        entry.previsto += pi.amount;
+      });
+      (p.clientInfo?.invoices || []).forEach((inv) => {
+        if (!inv.date || inv.date.slice(0, 7) !== billingMonth) return;
+        entry.facturado += inv.amount;
+      });
+      byManager.set(key, entry);
+    });
+    return Array.from(byManager.values())
+      .map((e) => ({ ...e, total: e.previsto + e.facturado }))
+      .filter((e) => e.total > 0)
+      .sort((a, b) => b.total - a.total);
+  }, [projects, projectManagers, billingMonth, managerFilter]);
+
   const handleDownloadPdf = () => {
     window.print();
   };
@@ -572,6 +596,50 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
           items={monthlyClientBilling.items}
           onClose={() => setShowBillingMonthModal(false)}
         />
+      )}
+
+      {managerFilter === 'all' && managerOptions.length > 1 && (
+        <Card className="mb-8">
+          <h2 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+            <TrophyIcon className="h-5 w-5 text-pink-500" />
+            Ranking de Gestores <span className="text-gray-500 font-normal text-sm capitalize">— {billingMonthLabel}</span>
+          </h2>
+          <p className="text-xs text-gray-500 mb-4">Facturación a clientes (prevista + real) del mes filtrado arriba, por gestor.</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="text-[10px] uppercase text-gray-500 border-b border-gray-700">
+                  <th className="py-2 pr-2">Gestor</th>
+                  <th className="py-2 px-2 text-right">Previsto</th>
+                  <th className="py-2 px-2 text-right">Facturado</th>
+                  <th className="py-2 pl-2 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {managerBillingRanking.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="py-4 text-center text-gray-500 text-xs">
+                      Sin facturación prevista ni registrada este mes.
+                    </td>
+                  </tr>
+                )}
+                {managerBillingRanking.map((m, idx) => (
+                  <tr key={m.name} className="hover:bg-gray-700/30 transition-colors">
+                    <td className="py-2 pr-2 text-white font-medium">
+                      <span className={`inline-flex items-center justify-center w-5 h-5 mr-2 rounded-full text-xs font-bold ${idx === 0 ? 'bg-yellow-500 text-black' : 'bg-gray-700 text-gray-400'}`}>
+                        {idx + 1}
+                      </span>
+                      {m.name}
+                    </td>
+                    <td className="py-2 px-2 text-right text-amber-400 font-mono">{formatEuro(m.previsto)}</td>
+                    <td className="py-2 px-2 text-right text-emerald-400 font-mono">{formatEuro(m.facturado)}</td>
+                    <td className="py-2 pl-2 text-right text-white font-mono font-bold">{formatEuro(m.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
 
       {/* Health distribution */}
