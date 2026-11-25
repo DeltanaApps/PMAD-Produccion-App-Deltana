@@ -114,6 +114,7 @@ export interface InternalWorkRange {
 export interface InternalCostInfo {
     hourlyRate: number; // Coste hora empresa para este empleado en este proyecto
     workRanges: InternalWorkRange[]; // Replaces hoursLogs
+    excludeFromActualTotal?: boolean; // "No computa": sus horas/fichajes se siguen mostrando, pero no se suman al gasto total del proyecto
 }
 
 export interface TeamMember {

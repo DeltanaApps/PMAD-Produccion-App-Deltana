@@ -93,7 +93,7 @@ interface ProjectMemberRow {
   active: boolean;
   team_member_id: string;
   team_member: TeamMemberRow;
-  rate: { hourly_rate: number | null } | null;
+  rate: { hourly_rate: number | null; exclude_from_actual_total: boolean | null } | null;
   work_ranges: WorkRangeRow[];
   collaborator_agreement: CollaboratorAgreementRow | null;
   collaborator_additionals: CollaboratorAdditionalRow[];
@@ -160,7 +160,7 @@ const PROJECT_SELECT = `
   members:project_members(
     id, role, task, active, team_member_id,
     team_member:team_members(id, contact, name, company, member_type, internal_member_type, default_hourly_rate),
-    rate:project_member_rates(hourly_rate),
+    rate:project_member_rates(hourly_rate, exclude_from_actual_total),
     work_ranges:internal_work_ranges(
       id, task_name, start_date, end_date, dedication_percentage, holidays_count, manual_hours,
       deliveries:internal_work_range_deliveries(id, description, date, completed)
@@ -275,6 +275,7 @@ const mapMember = (row: ProjectMemberRow): TeamMember => {
     member.internalCostInfo = {
       hourlyRate: row.rate?.hourly_rate ?? row.team_member.default_hourly_rate ?? 0,
       workRanges: row.work_ranges.map(mapWorkRange),
+      excludeFromActualTotal: row.rate?.exclude_from_actual_total ?? false,
     };
   }
 

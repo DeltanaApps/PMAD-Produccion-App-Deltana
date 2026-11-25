@@ -456,7 +456,7 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, internalRates }) => {
                 }
 
                 // INTERNAL TEAM MEMBERS
-                if (m.internalCostInfo) {
+                if (m.internalCostInfo && !m.internalCostInfo.excludeFromActualTotal) {
                     const info = m.internalCostInfo;
                     const rate = (info && info.hourlyRate > 0) ? info.hourlyRate : (internalRates[m.contact] || 0);
 

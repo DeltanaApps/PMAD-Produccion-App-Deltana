@@ -62,6 +62,7 @@ export function computeProjectFinancials(project: Project, globalRates: Record<s
   const internalMembers = project.team.filter((m) => m.type === MemberType.Internal);
   internalMembers.forEach((m) => {
     const info = m.internalCostInfo;
+    if (info?.excludeFromActualTotal) return;
     const rate = info && info.hourlyRate > 0 ? info.hourlyRate : globalRates[m.contact] || 0;
     const totalMemberHours = (info?.workRanges || []).reduce((hAcc, r) => hAcc + calculateRangeHours(r), 0);
     projectedInternalCosts += totalMemberHours * rate;
@@ -70,10 +71,11 @@ export function computeProjectFinancials(project: Project, globalRates: Record<s
   let actualInternalCosts = 0;
   const actualLogs = project.actualTimeTracking?.logs || [];
   internalMembers.forEach((m) => {
+    const info = m.internalCostInfo;
+    if (info?.excludeFromActualTotal) return;
     const key = m.name.toLowerCase().trim();
     const mLogs = actualLogs.filter((l) => l.employeeName.toLowerCase().trim() === key);
     const mHours = mLogs.reduce((acc, l) => acc + l.hours, 0);
-    const info = m.internalCostInfo;
     const rate = info && info.hourlyRate > 0 ? info.hourlyRate : globalRates[m.contact] || 0;
     actualInternalCosts += mHours * rate;
   });

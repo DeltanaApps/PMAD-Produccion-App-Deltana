@@ -524,7 +524,14 @@ export async function saveInternalFinancials(
 
   const { error: rateError } = await supabase
     .from('project_member_rates')
-    .upsert({ project_member_id: projectMemberId, hourly_rate: costInfo.hourlyRate }, { onConflict: 'project_member_id' });
+    .upsert(
+      {
+        project_member_id: projectMemberId,
+        hourly_rate: costInfo.hourlyRate,
+        exclude_from_actual_total: costInfo.excludeFromActualTotal ?? false,
+      },
+      { onConflict: 'project_member_id' }
+    );
   if (rateError) throw rateError;
 
   await supabase.from('internal_work_ranges').delete().eq('project_member_id', projectMemberId);

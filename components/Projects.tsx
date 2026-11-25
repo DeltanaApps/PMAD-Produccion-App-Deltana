@@ -139,6 +139,7 @@ const Projects: React.FC<ProjectsProps> = ({ projects, internalRates, onAddProje
         p.team.forEach(m => {
             if (m.type === MemberType.Internal) {
                 const info = m.internalCostInfo;
+                if (info?.excludeFromActualTotal) return;
                 // Use specific rate if > 0, otherwise use global rate from props
                 const rate = (info && info.hourlyRate > 0) ? info.hourlyRate : (internalRates[m.contact] || 0);
                 const hours = calculateTotalHours(info?.workRanges || []);

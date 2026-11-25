@@ -180,6 +180,7 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
             
             internalMembers.forEach(m => {
                 const info = m.internalCostInfo;
+                if (info?.excludeFromActualTotal) return;
                 const rate = (info && info.hourlyRate > 0) ? info.hourlyRate : (globalRates[m.contact] || 0);
                 const totalMemberHours = (info?.workRanges || []).reduce((hAcc, r) => hAcc + calculateRangeHours(r), 0);
                 projectedInternalCosts += (totalMemberHours * rate);
@@ -192,12 +193,13 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
             const actualLogs = project.actualTimeTracking?.logs || [];
 
             internalMembers.forEach(m => {
+                const info = m.internalCostInfo;
+                if (info?.excludeFromActualTotal) return;
                 const key = m.name.toLowerCase().trim();
                 const mLogs = actualLogs.filter(l => l.employeeName.toLowerCase().trim() === key);
                 const mHours = mLogs.reduce((acc, l) => acc + l.hours, 0);
-                const info = m.internalCostInfo;
                 const rate = (info && info.hourlyRate > 0) ? info.hourlyRate : (globalRates[m.contact] || 0);
-                
+
                 actualInternalHours += mHours;
                 actualInternalCosts += (mHours * rate);
             });
@@ -311,11 +313,16 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
                         <div key={m.contact} className="p-3 bg-gray-700/30 rounded border border-gray-700/50">
                             <div className="flex justify-between items-start mb-2">
                                 <div>
-                                    <p className="text-sm font-bold text-white">{m.name}</p>
+                                    <p className="text-sm font-bold text-white flex items-center gap-1.5">
+                                        {m.name}
+                                        {info?.excludeFromActualTotal && (
+                                            <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/50 text-amber-300">No computa</span>
+                                        )}
+                                    </p>
                                     <p className="text-xs text-gray-400">{m.role}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-orange-400 font-bold">{formatEuro(cost)}</p>
+                                    <p className={`font-bold ${info?.excludeFromActualTotal ? 'text-gray-500' : 'text-orange-400'}`}>{formatEuro(cost)}</p>
                                     <p className="text-[10px] text-gray-500">{totalHours.toFixed(1)}h x {rate}€/h</p>
                                 </div>
                             </div>
@@ -375,11 +382,16 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
                         <div key={m.contact} className="p-3 bg-gray-700/30 rounded border border-gray-700/50">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <p className="text-sm font-bold text-white">{m.name}</p>
+                                    <p className="text-sm font-bold text-white flex items-center gap-1.5">
+                                        {m.name}
+                                        {info?.excludeFromActualTotal && (
+                                            <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/50 text-amber-300">No computa</span>
+                                        )}
+                                    </p>
                                     <p className="text-xs text-gray-400">{m.role}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-emerald-400 font-bold">{formatEuro(cost)}</p>
+                                    <p className={`font-bold ${info?.excludeFromActualTotal ? 'text-gray-500' : 'text-emerald-400'}`}>{formatEuro(cost)}</p>
                                     <p className="text-[10px] text-emerald-300/70 font-mono">{mHours.toFixed(1)}h fichadas x {rate}€/h</p>
                                 </div>
                             </div>

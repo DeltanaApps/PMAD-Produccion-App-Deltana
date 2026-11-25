@@ -437,7 +437,7 @@ const MemberRow: React.FC<{
                         <h4 className="font-bold text-white text-base flex items-center gap-2">
                             <span>{member.name}</span>
                             {(onReassignMember || onRenameMember || onRemoveMemberFromProject) && (
-                                <button 
+                                <button
                                     onClick={() => setIsEditingMember(true)}
                                     className="text-gray-400 hover:text-sky-400 p-1 rounded hover:bg-gray-700/80 transition-colors"
                                     title="Editar o reasignar recurso en Recursos"
@@ -445,6 +445,18 @@ const MemberRow: React.FC<{
                                     <PencilIcon className="w-3.5 h-3.5" />
                                 </button>
                             )}
+                            <button
+                                type="button"
+                                onClick={() => onUpdate({ ...costInfo, excludeFromActualTotal: !costInfo.excludeFromActualTotal })}
+                                title="Sus horas y fichajes se siguen mostrando, pero no se suman al Gasto Proyectado ni al Gasto Real del proyecto."
+                                className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border transition-colors ${
+                                    costInfo.excludeFromActualTotal
+                                        ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                                        : 'bg-gray-900 border-gray-700 text-gray-500 hover:text-amber-400 hover:border-amber-500/40'
+                                }`}
+                            >
+                                {costInfo.excludeFromActualTotal ? '✓ No computa' : 'No computa'}
+                            </button>
                         </h4>
                         <div className="flex items-center gap-2 text-xs text-gray-400">
                             <span>{member.role || 'Recurso Interno'}</span>
@@ -477,18 +489,21 @@ const MemberRow: React.FC<{
                     </div>
                     
                     {/* Projected Box */}
-                    <div className="bg-gray-900/80 px-3 py-1.5 rounded border border-gray-700/80 text-right min-w-[125px]">
+                    <div className={`bg-gray-900/80 px-3 py-1.5 rounded border text-right min-w-[125px] ${costInfo.excludeFromActualTotal ? 'border-amber-500/40' : 'border-gray-700/80'}`}>
                         <span className="text-[9px] text-gray-400 uppercase font-bold tracking-wider block">Gasto Proyectado</span>
                         <div className="flex items-baseline justify-end gap-1.5 mt-0.5">
                             <span className="text-xs font-mono text-gray-300">{projectedHours.toFixed(1)}h</span>
                             <span className="font-bold text-sm text-sky-400">{formatEuro(projectedCost)}</span>
                         </div>
+                        {costInfo.excludeFromActualTotal && (
+                            <span className="text-[8px] text-amber-400 font-semibold uppercase tracking-wide block mt-0.5">No suma al total</span>
+                        )}
                     </div>
 
                     {/* Actual Box - Clickable for Breakdown Modal */}
-                    <button 
+                    <button
                         onClick={() => setIsBreakdownModalOpen(true)}
-                        className="bg-gray-900/80 px-3 py-1.5 rounded border border-emerald-500/40 hover:border-emerald-400 hover:bg-emerald-950/40 text-right min-w-[130px] transition-all group/actual"
+                        className={`bg-gray-900/80 px-3 py-1.5 rounded border hover:bg-emerald-950/40 text-right min-w-[130px] transition-all group/actual ${costInfo.excludeFromActualTotal ? 'border-amber-500/40 hover:border-amber-400' : 'border-emerald-500/40 hover:border-emerald-400'}`}
                         title="Haz clic para abrir el desglose mensual de horas e importes en Euros"
                     >
                         <span className="text-[9px] text-emerald-400 uppercase font-bold tracking-wider block flex items-center justify-end gap-1">
@@ -498,6 +513,9 @@ const MemberRow: React.FC<{
                             <span className="text-xs font-mono text-emerald-200">{actualHours.toFixed(1)}h</span>
                             <span className="font-bold text-sm text-emerald-400">{formatEuro(actualCost)}</span>
                         </div>
+                        {costInfo.excludeFromActualTotal && (
+                            <span className="text-[8px] text-amber-400 font-semibold uppercase tracking-wide block mt-0.5">No suma al total</span>
+                        )}
                     </button>
                     
                     <button 
@@ -915,9 +933,10 @@ const ProjectSection: React.FC<{
 
     internalMembers.forEach(m => {
         const info = m.internalCostInfo;
+        if (info?.excludeFromActualTotal) return;
         const rate = (info && info.hourlyRate > 0) ? info.hourlyRate : (globalRates[m.contact] || 0);
         const totalMemberHours = (info?.workRanges || []).reduce((hAcc, r) => hAcc + calculateRangeHours(r), 0);
-        
+
         projectProjectedCost += (totalMemberHours * rate);
         projectProjectedHours += totalMemberHours;
     });
@@ -939,11 +958,12 @@ const ProjectSection: React.FC<{
 
     // Compute actual cost per internal member
     internalMembers.forEach(m => {
+        const info = m.internalCostInfo;
+        if (info?.excludeFromActualTotal) return;
         const mLogs = memberActualLogsMap.get(m.contact) || memberActualLogsMap.get(normalizeNameKey(m.name)) || [];
         const mHours = mLogs.reduce((acc, l) => acc + l.hours, 0);
-        const info = m.internalCostInfo;
         const rate = (info && info.hourlyRate > 0) ? info.hourlyRate : (globalRates[m.contact] || 0);
-        
+
         projectActualHours += mHours;
         projectActualCost += (mHours * rate);
     });
