@@ -473,3 +473,16 @@ export async function fetchInternalRates(): Promise<Record<string, number>> {
   }
   return rates;
 }
+
+// Per-manager monthly client-billing goal, used by the Dashboard Ejecutivo
+// to show "% de la meta". A manager with no row here just falls back to the
+// app's default (80.000 EUR) -- callers apply that fallback themselves.
+export async function fetchManagerBillingGoals(): Promise<Record<string, number>> {
+  const { data, error } = await supabase.from('manager_billing_goals').select('manager_id, monthly_goal');
+  if (error) throw error;
+  const goals: Record<string, number> = {};
+  for (const row of (data ?? []) as { manager_id: string; monthly_goal: number }[]) {
+    goals[row.manager_id] = row.monthly_goal;
+  }
+  return goals;
+}

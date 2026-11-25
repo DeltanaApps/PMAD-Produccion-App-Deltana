@@ -30,6 +30,7 @@ import {
   fetchClients,
   fetchClientContacts,
   fetchMyOrphanClients,
+  fetchManagerBillingGoals,
   type OrphanClient,
 } from './lib/api/fetch';
 import { updateMyThemePreference } from './lib/api/preferences';
@@ -44,6 +45,7 @@ import {
   updateProjectWithMembers as apiUpdateProjectWithMembers,
   deleteClient as apiDeleteClient,
   createClientContact as apiCreateClientContact,
+  upsertManagerBillingGoal as apiUpsertManagerBillingGoal,
 } from './lib/api/projects';
 import {
   saveNewCollaborator as apiSaveNewCollaborator,
@@ -86,6 +88,10 @@ const isAdministradorRole = (role: string | null) => role === 'administrador';
 // invoicing/financials across every project, which is why she's also the
 // one who runs the weekly multi-project fichaje import from Odoo.
 const isAdministracionRole = (role: string | null) => role === 'administracion';
+// Only Dirección/Administrador set each gestor's monthly client-billing goal
+// (shown as "% de la meta" in the Dashboard Ejecutivo) -- "administracion"
+// and gestores themselves can see it, but not change it.
+const canSetManagerBillingGoals = (role: string | null) => role === 'direccion' || role === 'administrador';
 
 const handlePersistError = (err: unknown) => {
   console.error('Error al guardar en Supabase:', err);
@@ -180,6 +186,7 @@ const App: React.FC = () => {
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [currentUserLabel, setCurrentUserLabel] = useState<string | null>(null);
   const [projectManagers, setProjectManagers] = useState<Record<string, { id: string; name: string }>>({});
+  const [managerBillingGoals, setManagerBillingGoals] = useState<Record<string, number>>({});
   const [allClients, setAllClients] = useState<string[]>([]);
   const [orphanClients, setOrphanClients] = useState<OrphanClient[]>([]);
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
@@ -205,6 +212,7 @@ const App: React.FC = () => {
       setCurrentUserRole(null);
       setCurrentUserLabel(null);
       setProjectManagers({});
+      setManagerBillingGoals({});
       setAllClients([]);
       setOrphanClients([]);
       return;
@@ -236,6 +244,7 @@ const App: React.FC = () => {
         }
         if (canViewExecutiveDashboard(profile?.role ?? null)) {
           fetchProjectManagers().then(setProjectManagers).catch(handlePersistError);
+          fetchManagerBillingGoals().then(setManagerBillingGoals).catch(handlePersistError);
           setCurrentView('executive-dashboard');
         }
         if (isAdministradorRole(profile?.role ?? null)) {
@@ -676,6 +685,14 @@ const App: React.FC = () => {
             projectManagers={projectManagers}
             isAdministracion={isAdministradorRole(currentUserRole)}
             pendingApprovalCount={pendingApprovalCount}
+            managerBillingGoals={managerBillingGoals}
+            canEditBillingGoals={canSetManagerBillingGoals(currentUserRole)}
+            onUpdateManagerBillingGoal={(managerId, goal) => {
+              if (!session) return;
+              apiUpsertManagerBillingGoal(managerId, goal, session.user.id)
+                .then(() => setManagerBillingGoals((prev) => ({ ...prev, [managerId]: goal })))
+                .catch(handlePersistError);
+            }}
           />
         );
       case 'administration':

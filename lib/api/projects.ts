@@ -142,6 +142,13 @@ export async function deleteClient(clientId: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function upsertManagerBillingGoal(managerId: string, monthlyGoal: number, updatedBy: string): Promise<void> {
+  const { error } = await supabase
+    .from('manager_billing_goals')
+    .upsert({ manager_id: managerId, monthly_goal: monthlyGoal, updated_at: new Date().toISOString(), updated_by: updatedBy });
+  if (error) throw error;
+}
+
 async function findProjectMemberId(projectId: string, contact: string): Promise<string> {
   const { data: teamMember, error: tmError } = await supabase
     .from('team_members')

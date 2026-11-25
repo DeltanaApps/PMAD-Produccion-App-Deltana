@@ -13,10 +13,16 @@ interface ExecutiveDashboardProps {
   projectManagers: Record<string, { id: string; name: string }>;
   isAdministracion?: boolean;
   pendingApprovalCount?: number;
+  managerBillingGoals?: Record<string, number>;
+  canEditBillingGoals?: boolean;
+  onUpdateManagerBillingGoal?: (managerId: string, monthlyGoal: number) => void;
 }
 
 const formatEuro = (amount: number) =>
   new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(amount);
+
+// Applies when Dirección/Administrador hasn't set a goal for a given gestor yet.
+const DEFAULT_MONTHLY_GOAL = 80000;
 
 const HEALTHY_THRESHOLD = 50; // margin % at or above this is "sano"
 const CRITICAL_THRESHOLD = 35; // margin % below this is "crítico"
@@ -95,20 +101,31 @@ interface ClientBillingMonthItem {
   amount: number;
   date: string;
   status: 'previsto' | 'facturado';
+  managerId?: string;
 }
+
+const goalPctColorClass = (pct: number) =>
+  pct >= 100 ? 'text-emerald-400' : pct >= 60 ? 'text-amber-400' : 'text-red-400';
 
 const ClientBillingMonthModal: React.FC<{
   monthLabel: string;
   items: ClientBillingMonthItem[];
+  goalTotal: number;
+  getGoalForManager: (managerId?: string) => number;
   onClose: () => void;
-}> = ({ monthLabel, items, onClose }) => {
+}> = ({ monthLabel, items, goalTotal, getGoalForManager, onClose }) => {
   const total = items.reduce((sum, i) => sum + i.amount, 0);
+  const totalPct = goalTotal > 0 ? (total / goalTotal) * 100 : 0;
   const sorted = [...items].sort((a, b) => a.date.localeCompare(b.date));
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" onClick={onClose}>
-      <div className="bg-gray-800 rounded-xl max-w-3xl w-full border border-gray-700 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-gray-800 rounded-xl max-w-4xl w-full border border-gray-700 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
         <div className="p-4 bg-gray-900 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
-          <h3 className="font-bold text-lg text-white">Facturación a Clientes — {monthLabel} <span className="text-sm text-gray-500 font-normal">({formatEuro(total)})</span></h3>
+          <h3 className="font-bold text-lg text-white">
+            Facturación a Clientes — {monthLabel}{' '}
+            <span className="text-sm text-gray-500 font-normal">({formatEuro(total)})</span>{' '}
+            <span className={`text-sm font-bold ${goalPctColorClass(totalPct)}`}>· {totalPct.toFixed(0)}% de la meta</span>
+          </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition-colors">✕</button>
         </div>
         <div className="overflow-y-auto flex-1">
@@ -120,26 +137,32 @@ const ClientBillingMonthModal: React.FC<{
                 <th className="px-4 py-3">Cliente</th>
                 <th className="px-4 py-3">Concepto</th>
                 <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3 text-right">% Meta</th>
                 <th className="px-4 py-3 text-right">Importe</th>
               </tr>
             </thead>
             <tbody>
-              {sorted.map((it, idx) => (
-                <tr key={idx} className="border-b border-gray-700 hover:bg-gray-800/50 transition-colors">
-                  <td className="px-4 py-3 font-mono text-xs text-sky-400">{it.projectCode}</td>
-                  <td className="px-4 py-3 font-medium text-white">{it.projectName}</td>
-                  <td className="px-4 py-3">{it.client}</td>
-                  <td className="px-4 py-3">{it.description}</td>
-                  <td className="px-4 py-3">
-                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${it.status === 'facturado' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-amber-400 border-amber-500/30 bg-amber-500/10'}`}>
-                      {it.status === 'facturado' ? 'Facturado' : 'Previsto'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono">{formatEuro(it.amount)}</td>
-                </tr>
-              ))}
+              {sorted.map((it, idx) => {
+                const itemGoal = getGoalForManager(it.managerId);
+                const itemPct = itemGoal > 0 ? (it.amount / itemGoal) * 100 : 0;
+                return (
+                  <tr key={idx} className="border-b border-gray-700 hover:bg-gray-800/50 transition-colors">
+                    <td className="px-4 py-3 font-mono text-xs text-sky-400">{it.projectCode}</td>
+                    <td className="px-4 py-3 font-medium text-white">{it.projectName}</td>
+                    <td className="px-4 py-3">{it.client}</td>
+                    <td className="px-4 py-3">{it.description}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${it.status === 'facturado' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-amber-400 border-amber-500/30 bg-amber-500/10'}`}>
+                        {it.status === 'facturado' ? 'Facturado' : 'Previsto'}
+                      </span>
+                    </td>
+                    <td className={`px-4 py-3 text-right font-mono text-xs ${goalPctColorClass(itemPct)}`}>{itemPct.toFixed(1)}%</td>
+                    <td className="px-4 py-3 text-right font-mono">{formatEuro(it.amount)}</td>
+                  </tr>
+                );
+              })}
               {sorted.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-500">No hay facturación prevista ni registrada para este mes.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-500">No hay facturación prevista ni registrada para este mes.</td></tr>
               )}
             </tbody>
           </table>
@@ -149,6 +172,53 @@ const ClientBillingMonthModal: React.FC<{
         </div>
       </div>
     </div>
+  );
+};
+
+const EditableGoal: React.FC<{
+  goal: number;
+  onSave: (value: number) => void;
+  className?: string;
+}> = ({ goal, onSave, className }) => {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(String(goal));
+
+  const commit = () => {
+    const n = Number(value);
+    if (n > 0) onSave(n);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <span className="inline-flex items-center gap-1">
+        <input
+          type="number"
+          min={1}
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commit();
+            if (e.key === 'Escape') setEditing(false);
+          }}
+          className="w-24 bg-gray-900 border border-sky-500 rounded px-1.5 py-0.5 text-xs text-white"
+        />
+        <button type="button" onClick={commit} className="text-emerald-400 hover:text-emerald-300 text-xs font-bold" title="Guardar">✓</button>
+        <button type="button" onClick={() => setEditing(false)} className="text-gray-500 hover:text-white text-xs" title="Cancelar">✕</button>
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => { setValue(String(goal)); setEditing(true); }}
+      className={className ?? 'text-gray-500 hover:text-sky-400 transition-colors'}
+      title="Editar meta mensual"
+    >
+      ✎
+    </button>
   );
 };
 
@@ -217,7 +287,16 @@ const MonthBreakdownModal: React.FC<{
   );
 };
 
-const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, internalRates, projectManagers, isAdministracion, pendingApprovalCount }) => {
+const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
+  projects,
+  internalRates,
+  projectManagers,
+  isAdministracion,
+  pendingApprovalCount,
+  managerBillingGoals = {},
+  canEditBillingGoals = false,
+  onUpdateManagerBillingGoal,
+}) => {
   const [exportMonth, setExportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [managerFilter, setManagerFilter] = useState<string>('all');
   const [drillDown, setDrillDown] = useState<{ title: string; items: ProjectFinancials[] } | null>(null);
@@ -235,6 +314,21 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
     });
     return Array.from(seen.entries()).sort((a, b) => a[1].localeCompare(b[1]));
   }, [projects, projectManagers]);
+
+  const getGoalForManager = (managerId?: string): number => {
+    if (!managerId) return DEFAULT_MONTHLY_GOAL;
+    const goal = managerBillingGoals[managerId];
+    return typeof goal === 'number' && goal > 0 ? goal : DEFAULT_MONTHLY_GOAL;
+  };
+
+  // The goal that "Facturación a Clientes del Mes" is measured against: the
+  // selected gestor's own goal, or -- with every gestor shown at once -- the
+  // sum of all of their individual goals, so the % stays meaningful either way.
+  const selectedGoal = useMemo(() => {
+    if (managerFilter !== 'all') return getGoalForManager(managerFilter);
+    if (managerOptions.length === 0) return DEFAULT_MONTHLY_GOAL;
+    return managerOptions.reduce((sum, [id]) => sum + getGoalForManager(id), 0);
+  }, [managerFilter, managerOptions, managerBillingGoals]);
 
   const filteredProjects = useMemo(() => {
     if (managerFilter === 'all') return projects;
@@ -382,6 +476,7 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
   const monthlyClientBilling = useMemo(() => {
     const items: ClientBillingMonthItem[] = [];
     filteredProjects.forEach((p) => {
+      const managerId = projectManagers[p.id]?.id;
       (p.clientInfo?.plannedInvoices || []).forEach((pi) => {
         if (!pi.date || pi.date.slice(0, 7) !== billingMonth) return;
         items.push({
@@ -392,6 +487,7 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
           amount: pi.amount,
           date: pi.date,
           status: 'previsto',
+          managerId,
         });
       });
       (p.clientInfo?.invoices || []).forEach((inv) => {
@@ -404,6 +500,7 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
           amount: inv.amount,
           date: inv.date,
           status: 'facturado',
+          managerId,
         });
       });
     });
@@ -411,6 +508,8 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
     const facturadoTotal = items.filter((i) => i.status === 'facturado').reduce((sum, i) => sum + i.amount, 0);
     return { items, total: previstoTotal + facturadoTotal, previstoTotal, facturadoTotal };
   }, [filteredProjects, billingMonth]);
+
+  const selectedGoalPct = selectedGoal > 0 ? (monthlyClientBilling.total / selectedGoal) * 100 : 0;
 
   const billingMonthLabel = useMemo(() => {
     const [y, m] = billingMonth.split('-').map(Number);
@@ -420,15 +519,15 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
 
   const managerBillingRanking = useMemo(() => {
     if (managerFilter !== 'all') return [];
-    const byManager = new Map<string, { name: string; previsto: number; facturado: number }>();
+    const byManager = new Map<string, { id: string; name: string; previsto: number; facturado: number }>();
     managerOptions.forEach(([id, name]) => {
-      byManager.set(id, { name, previsto: 0, facturado: 0 });
+      byManager.set(id, { id, name, previsto: 0, facturado: 0 });
     });
     projects.forEach((p) => {
       const m = projectManagers[p.id];
       const key = m?.id || '__sin_asignar__';
       const name = m?.name || 'Sin asignar';
-      const entry = byManager.get(key) || { name, previsto: 0, facturado: 0 };
+      const entry = byManager.get(key) || { id: key, name, previsto: 0, facturado: 0 };
       (p.clientInfo?.plannedInvoices || []).forEach((pi) => {
         if (!pi.date || pi.date.slice(0, 7) !== billingMonth) return;
         entry.previsto += pi.amount;
@@ -578,24 +677,37 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
             />
           </div>
         </div>
-        <button
-          type="button"
+        <div
+          role="button"
+          tabIndex={0}
           onClick={() => setShowBillingMonthModal(true)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowBillingMonthModal(true); }}
           className="w-full text-left mt-4 p-4 rounded-lg border border-gray-700 bg-gray-900/40 hover:bg-gray-800/60 transition-colors cursor-pointer"
         >
-          <p className="text-3xl font-bold text-emerald-400 font-mono">{formatEuro(monthlyClientBilling.total)}</p>
+          <p className="text-3xl font-bold text-emerald-400 font-mono">
+            {formatEuro(monthlyClientBilling.total)}
+            <span className={`ml-3 text-base font-bold align-middle ${goalPctColorClass(selectedGoalPct)}`}>{selectedGoalPct.toFixed(0)}% de la meta</span>
+          </p>
           <p className="text-xs text-gray-400 mt-2 capitalize">
             {billingMonthLabel} · Previsto: <span className="text-amber-400 font-medium">{formatEuro(monthlyClientBilling.previstoTotal)}</span>
             {' · '}Ya facturado: <span className="text-emerald-400 font-medium">{formatEuro(monthlyClientBilling.facturadoTotal)}</span>
             {' · clic para ver el detalle'}
           </p>
-        </button>
+          <p className="text-xs text-gray-500 mt-1 normal-case flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <span>Meta {managerFilter === 'all' ? 'conjunta' : ''}: {formatEuro(selectedGoal)}</span>
+            {managerFilter !== 'all' && canEditBillingGoals && onUpdateManagerBillingGoal && (
+              <EditableGoal goal={selectedGoal} onSave={(v) => onUpdateManagerBillingGoal(managerFilter, v)} />
+            )}
+          </p>
+        </div>
       </Card>
 
       {showBillingMonthModal && (
         <ClientBillingMonthModal
           monthLabel={billingMonthLabel}
           items={monthlyClientBilling.items}
+          goalTotal={selectedGoal}
+          getGoalForManager={getGoalForManager}
           onClose={() => setShowBillingMonthModal(false)}
         />
       )}
@@ -614,30 +726,48 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
                   <th className="py-2 pr-2">Gestor</th>
                   <th className="py-2 px-2 text-right">Previsto</th>
                   <th className="py-2 px-2 text-right">Facturado</th>
-                  <th className="py-2 pl-2 text-right">Total</th>
+                  <th className="py-2 px-2 text-right">Total</th>
+                  <th className="py-2 pl-2 text-right">% Meta</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
                 {managerBillingRanking.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="py-4 text-center text-gray-500 text-xs">
+                    <td colSpan={5} className="py-4 text-center text-gray-500 text-xs">
                       Sin facturación prevista ni registrada este mes.
                     </td>
                   </tr>
                 )}
-                {managerBillingRanking.map((m, idx) => (
-                  <tr key={m.name} className="hover:bg-gray-700/30 transition-colors">
-                    <td className="py-2 pr-2 text-white font-medium">
-                      <span className={`inline-flex items-center justify-center w-5 h-5 mr-2 rounded-full text-xs font-bold ${idx === 0 ? 'bg-yellow-500 text-black' : 'bg-gray-700 text-gray-400'}`}>
-                        {idx + 1}
-                      </span>
-                      {m.name}
-                    </td>
-                    <td className="py-2 px-2 text-right text-amber-400 font-mono">{formatEuro(m.previsto)}</td>
-                    <td className="py-2 px-2 text-right text-emerald-400 font-mono">{formatEuro(m.facturado)}</td>
-                    <td className="py-2 pl-2 text-right text-white font-mono font-bold">{formatEuro(m.total)}</td>
-                  </tr>
-                ))}
+                {managerBillingRanking.map((m, idx) => {
+                  const hasRealManager = m.id !== '__sin_asignar__';
+                  const goal = hasRealManager ? getGoalForManager(m.id) : null;
+                  const pct = goal ? (m.total / goal) * 100 : null;
+                  return (
+                    <tr key={m.name} className="hover:bg-gray-700/30 transition-colors">
+                      <td className="py-2 pr-2 text-white font-medium">
+                        <span className={`inline-flex items-center justify-center w-5 h-5 mr-2 rounded-full text-xs font-bold ${idx === 0 ? 'bg-yellow-500 text-black' : 'bg-gray-700 text-gray-400'}`}>
+                          {idx + 1}
+                        </span>
+                        {m.name}
+                      </td>
+                      <td className="py-2 px-2 text-right text-amber-400 font-mono">{formatEuro(m.previsto)}</td>
+                      <td className="py-2 px-2 text-right text-emerald-400 font-mono">{formatEuro(m.facturado)}</td>
+                      <td className="py-2 px-2 text-right text-white font-mono font-bold">{formatEuro(m.total)}</td>
+                      <td className="py-2 pl-2 text-right">
+                        {pct !== null ? (
+                          <span className="inline-flex items-center gap-1.5 justify-end">
+                            <span className={`font-mono font-bold ${goalPctColorClass(pct)}`}>{pct.toFixed(0)}%</span>
+                            {canEditBillingGoals && onUpdateManagerBillingGoal && (
+                              <EditableGoal goal={goal!} onSave={(v) => onUpdateManagerBillingGoal(m.id, v)} />
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-gray-600">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
