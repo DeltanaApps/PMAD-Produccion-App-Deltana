@@ -387,8 +387,11 @@ const Collaborators: React.FC<CollaboratorsProps> = ({ projects, onSaveFinancial
     if (readOnly || !focusProjectId || !selectedData || autoOpenedForRef.current === focusProjectId) return;
     const project = selectedData.projects.find(p => p.id === focusProjectId);
     if (project) {
-      autoOpenedForRef.current = focusProjectId;
-      setFinancialsModalData({ project, collaborator: selectedData.member });
+      const memberInProject = project.team.find(m => m.contact === selectedData.member.contact);
+      if (memberInProject) {
+        autoOpenedForRef.current = focusProjectId;
+        setFinancialsModalData({ project, collaborator: memberInProject });
+      }
     }
   }, [focusProjectId, selectedData]);
 
