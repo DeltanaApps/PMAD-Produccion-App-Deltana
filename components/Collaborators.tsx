@@ -24,6 +24,39 @@ const formatEuro = (amount: number) => (
     </span>
 );
 
+const ExternalResourcePickerModal: React.FC<{
+  project: Project;
+  options: TeamMember[];
+  onPick: (member: TeamMember) => void;
+  onClose: () => void;
+}> = ({ project, options, onPick, onClose }) => (
+  <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 animate-fade-in">
+    <div className="bg-gray-800 rounded-lg shadow-2xl w-full max-w-md overflow-hidden border border-gray-700" onClick={(e) => e.stopPropagation()}>
+      <div className="p-4 border-b border-gray-700 bg-gray-900 flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-bold text-white">¿Qué recurso externo quieres ver?</h3>
+          <p className="text-xs text-gray-400 mt-0.5">{project.name}</p>
+        </div>
+        <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+      </div>
+      <div className="p-4 space-y-2 max-h-[60vh] overflow-y-auto">
+        {options.map((member) => (
+          <button
+            key={member.contact}
+            onClick={() => onPick(member)}
+            className="w-full text-left px-4 py-3 rounded-lg bg-gray-700/30 hover:bg-gray-700/60 border border-gray-700/50 transition-colors"
+          >
+            <p className="text-sm font-bold text-white">{member.name}</p>
+            {(member.role || member.company) && (
+              <p className="text-xs text-gray-400 mt-0.5">{[member.role, member.company].filter(Boolean).join(' - ')}</p>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
 interface DetailModalData {
     title: string;
     type: 'AGREED' | 'BILLED' | 'PLANNED';
@@ -327,6 +360,7 @@ const Collaborators: React.FC<CollaboratorsProps> = ({ projects, onSaveFinancial
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState('');
   const [financialsModalData, setFinancialsModalData] = useState<{ project: Project; collaborator: TeamMember } | null>(null);
+  const [externalPickerData, setExternalPickerData] = useState<{ project: Project; options: TeamMember[] } | null>(null);
   const [detailModalData, setDetailModalData] = useState<DetailModalData | null>(null);
   const [managerFilter, setManagerFilter] = useState<string>('all');
 
@@ -377,23 +411,43 @@ const Collaborators: React.FC<CollaboratorsProps> = ({ projects, onSaveFinancial
   const selectedData = collaborators.find(c => c.member.contact === selectedCollaborator);
 
   // When arriving via a "Rec. Externos" shortcut from a project card, jump
-  // straight into that project's financial-management modal for the
-  // auto-selected collaborator, instead of leaving the user to find it in a
-  // list that may hold many other projects for the same person. Guarded so
-  // re-renders (or the user closing the modal) don't force it back open --
-  // it only fires once per distinct focusProjectId.
+  // straight into that project's financial-management modal -- for the
+  // single external resource on it, or, when it has more than one, ask
+  // which one before opening anything. Guarded so re-renders (or the user
+  // closing the modal) don't force it back open -- it only fires once per
+  // distinct focusProjectId.
   const autoOpenedForRef = useRef<string | null>(null);
   useEffect(() => {
-    if (readOnly || !focusProjectId || !selectedData || autoOpenedForRef.current === focusProjectId) return;
-    const project = selectedData.projects.find(p => p.id === focusProjectId);
-    if (project) {
-      const memberInProject = project.team.find(m => m.contact === selectedData.member.contact);
-      if (memberInProject) {
-        autoOpenedForRef.current = focusProjectId;
-        setFinancialsModalData({ project, collaborator: memberInProject });
-      }
+    if (readOnly || !focusProjectId || autoOpenedForRef.current === focusProjectId) return;
+    const project = projects.find(p => p.id === focusProjectId);
+    if (!project) return;
+    const externals = project.team.filter(m => m.type === MemberType.External);
+    if (externals.length === 0) return;
+    autoOpenedForRef.current = focusProjectId;
+    if (externals.length === 1) {
+      setSelectedCollaborator(externals[0].contact);
+      setFinancialsModalData({ project, collaborator: externals[0] });
+    } else {
+      setExternalPickerData({ project, options: externals });
     }
-  }, [focusProjectId, selectedData]);
+  }, [focusProjectId, projects, readOnly]);
+
+  const handlePickExternal = (member: TeamMember) => {
+    if (!externalPickerData) return;
+    setSelectedCollaborator(member.contact);
+    setFinancialsModalData({ project: externalPickerData.project, collaborator: member });
+    setExternalPickerData(null);
+  };
+
+  // Dismissing without picking falls back to the previous default: the
+  // first external resource of the project, auto-opened.
+  const handleDismissExternalPicker = () => {
+    if (!externalPickerData) return;
+    const fallback = externalPickerData.options[0];
+    setSelectedCollaborator(fallback.contact);
+    setFinancialsModalData({ project: externalPickerData.project, collaborator: fallback });
+    setExternalPickerData(null);
+  };
 
   const handleSave = (financialInfo: CollaboratorInfo) => {
     if (financialsModalData) {
@@ -565,10 +619,19 @@ const Collaborators: React.FC<CollaboratorsProps> = ({ projects, onSaveFinancial
       )}
 
       {detailModalData && (
-          <DetailModal 
-            data={detailModalData} 
-            onClose={() => setDetailModalData(null)} 
+          <DetailModal
+            data={detailModalData}
+            onClose={() => setDetailModalData(null)}
           />
+      )}
+
+      {externalPickerData && (
+        <ExternalResourcePickerModal
+          project={externalPickerData.project}
+          options={externalPickerData.options}
+          onPick={handlePickExternal}
+          onClose={handleDismissExternalPicker}
+        />
       )}
 
       <style>{`
