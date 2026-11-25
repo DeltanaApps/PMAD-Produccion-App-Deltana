@@ -421,6 +421,9 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
   const managerBillingRanking = useMemo(() => {
     if (managerFilter !== 'all') return [];
     const byManager = new Map<string, { name: string; previsto: number; facturado: number }>();
+    managerOptions.forEach(([id, name]) => {
+      byManager.set(id, { name, previsto: 0, facturado: 0 });
+    });
     projects.forEach((p) => {
       const m = projectManagers[p.id];
       const key = m?.id || '__sin_asignar__';
@@ -438,9 +441,8 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ projects, inter
     });
     return Array.from(byManager.values())
       .map((e) => ({ ...e, total: e.previsto + e.facturado }))
-      .filter((e) => e.total > 0)
       .sort((a, b) => b.total - a.total);
-  }, [projects, projectManagers, billingMonth, managerFilter]);
+  }, [projects, projectManagers, billingMonth, managerFilter, managerOptions]);
 
   const handleDownloadPdf = () => {
     window.print();
