@@ -171,7 +171,11 @@ const EconomicTracking: React.FC<EconomicTrackingProps> = ({ projects, globalRat
             // 1. Total Budget
             const baseBudget = project.clientInfo?.agreement.amount || 0;
             const additionalsBudget = project.clientInfo?.additionals.reduce((acc, curr) => acc + curr.amount, 0) || 0;
-            const totalBudget = baseBudget + additionalsBudget;
+            // While still a Proposal there's no client agreement yet, so the manager's
+            // estimated "Precio de la Propuesta" stands in as the Presupuesto.
+            const totalBudget = project.status === ProjectStatus.Proposal
+                ? (project.proposalPrice || 0)
+                : baseBudget + additionalsBudget;
 
             // 2. Projected Internal Costs
             let projectedInternalCosts = 0;

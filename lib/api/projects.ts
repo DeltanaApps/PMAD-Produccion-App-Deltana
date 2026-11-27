@@ -322,6 +322,7 @@ async function upsertProjectCore(
     profitability_target: projectData.profitabilityTarget ?? null,
     proposal_code: projectData.proposalCode ?? null,
     proposal_estimate_url: projectData.proposalEstimateUrl ?? null,
+    proposal_price: projectData.proposalPrice ?? null,
   };
 
   if (!isNew) {

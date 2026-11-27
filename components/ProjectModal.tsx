@@ -91,6 +91,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
   const [profitabilityTarget, setProfitabilityTarget] = useState('');
   const [proposalCode, setProposalCode] = useState('');
   const [proposalEstimateUrl, setProposalEstimateUrl] = useState('');
+  const [proposalPrice, setProposalPrice] = useState('');
 
   // Snapshot of the status this project had when the modal was opened (never
   // changes during this session) so we can detect a Propuesta -> real-status
@@ -132,6 +133,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
       setProfitabilityTarget(project.profitabilityTarget !== undefined ? String(project.profitabilityTarget) : '');
       setProposalCode(project.proposalCode || '');
       setProposalEstimateUrl(project.proposalEstimateUrl || '');
+      setProposalPrice(project.proposalPrice !== undefined ? String(project.proposalPrice) : '');
       originalStatusRef.current = project.status;
       proposalTransitionHandledRef.current = false;
 
@@ -155,6 +157,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
       setProfitabilityTarget('');
       setProposalCode('');
       setProposalEstimateUrl('');
+      setProposalPrice('');
       originalStatusRef.current = ProjectStatus.Proposal;
       proposalTransitionHandledRef.current = false;
 
@@ -201,6 +204,11 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
     const trimmedTarget = profitabilityTarget.trim();
     if (trimmedTarget !== '' && (isNaN(Number(trimmedTarget)) || Number(trimmedTarget) < 0 || Number(trimmedTarget) > 100)) {
         alert("El umbral de rentabilidad personalizado debe ser un número entre 0 y 100.");
+        return;
+    }
+    const trimmedProposalPrice = proposalPrice.trim();
+    if (trimmedProposalPrice !== '' && (isNaN(Number(trimmedProposalPrice)) || Number(trimmedProposalPrice) < 0)) {
+        alert("El precio de la propuesta debe ser un número válido.");
         return;
     }
     for (const row of contactRows) {
@@ -273,6 +281,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
         profitabilityTarget: trimmedTarget === '' ? undefined : Number(trimmedTarget),
         proposalCode: proposalCode.trim() || undefined,
         proposalEstimateUrl: proposalEstimateUrl.trim() || undefined,
+        proposalPrice: trimmedProposalPrice === '' ? undefined : Number(trimmedProposalPrice),
         contacts: resolvedContacts,
     });
   };
@@ -485,6 +494,21 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, availableClients, 
                         onChange={(e) => setProposalEstimateUrl(e.target.value)}
                         placeholder="https://onedrive..."
                     />
+                </div>
+
+                <div>
+                    <Input
+                        label="Precio de la Propuesta (€)"
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={proposalPrice}
+                        onChange={(e) => setProposalPrice(e.target.value)}
+                        placeholder="Precio estimado de la propuesta"
+                    />
+                    <p className="text-[11px] text-gray-500 mt-1">
+                        Mientras el proyecto esté en estado Propuesta, este precio se usa como Presupuesto para calcular el beneficio/rentabilidad proyectados. Al pasar a proyecto real, el Presupuesto pasa a tomarse del acuerdo con el cliente (precio real del contrato); este dato queda archivado como referencia.
+                    </p>
                 </div>
 
                 {/* Closing Email Check - Only visible if Completed */}

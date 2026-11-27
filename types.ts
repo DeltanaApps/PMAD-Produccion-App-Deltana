@@ -186,6 +186,7 @@ export interface Project {
   profitabilityTarget?: number; // Custom profitability threshold (%), overrides the app-wide default (50%) when set
   proposalCode?: string; // Archived code the project used while it was still a Proposal
   proposalEstimateUrl?: string; // Link to the proposal's estimate/budget document
+  proposalPrice?: number; // Estimated proposal price, used as Presupuesto while status is Proposal (no client agreement amount exists yet)
   contacts?: ProjectContact[];
 }
 

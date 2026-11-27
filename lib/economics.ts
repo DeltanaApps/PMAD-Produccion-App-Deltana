@@ -56,7 +56,11 @@ export interface ProjectFinancials {
 export function computeProjectFinancials(project: Project, globalRates: Record<string, number>): ProjectFinancials {
   const baseBudget = project.clientInfo?.agreement.amount || 0;
   const additionalsBudget = project.clientInfo?.additionals.reduce((acc, curr) => acc + curr.amount, 0) || 0;
-  const totalBudget = baseBudget + additionalsBudget;
+  // While still a Proposal there's no client agreement yet, so the manager's
+  // estimated "Precio de la Propuesta" stands in as the Presupuesto.
+  const totalBudget = project.status === ProjectStatus.Proposal
+    ? (project.proposalPrice || 0)
+    : baseBudget + additionalsBudget;
 
   let projectedInternalCosts = 0;
   const internalMembers = project.team.filter((m) => m.type === MemberType.Internal);
